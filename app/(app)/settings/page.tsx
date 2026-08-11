@@ -1,0 +1,24 @@
+import type { Metadata } from "next";
+import { SettingsView } from "@/components/settings/settings-view";
+
+export const metadata: Metadata = {
+  title: "Settings",
+};
+
+export default function SettingsPage() {
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
+      <div>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+          Settings
+        </h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Manage your appearance, study preferences, notifications, and account.
+        </p>
+      </div>
+      <div className="mt-6">
+        <SettingsView />
+      </div>
+    </div>
+  );
+}

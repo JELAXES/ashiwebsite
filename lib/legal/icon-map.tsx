@@ -1,0 +1,53 @@
+import {
+  Landmark,
+  Gavel,
+  FileSignature,
+  ShieldAlert,
+  Home,
+  Users,
+  Building2,
+  Scale,
+  FileStack,
+  ClipboardList,
+  FileSearch,
+  BookOpenText,
+  Globe2,
+  Leaf,
+  HardHat,
+  Lightbulb,
+  type LucideIcon,
+} from "lucide-react";
+
+export const subjectIconMap: Record<string, LucideIcon> = {
+  Landmark,
+  Gavel,
+  FileSignature,
+  ShieldAlert,
+  Home,
+  Users,
+  Building2,
+  Scale,
+  FileStack,
+  ClipboardList,
+  FileSearch,
+  BookOpenText,
+  Globe2,
+  Leaf,
+  HardHat,
+  Lightbulb,
+};
+
+export function getSubjectIcon(name: string): LucideIcon {
+  return subjectIconMap[name] ?? Scale;
+}
+
+/**
+ * Renders a subject icon from a dynamic name lookup. Plain (lowercase) helper
+ * function rather than a component so the icon-by-name pattern doesn't trip
+ * react-hooks/static-components, which flags JSX tags resolved from a
+ * variable computed during a component's render.
+ */
+export function renderSubjectIcon(name: string, className?: string) {
+  const Icon = subjectIconMap[name] ?? Scale;
+  return <Icon className={className} aria-hidden="true" />;
+}
