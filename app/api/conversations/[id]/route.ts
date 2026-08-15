@@ -20,7 +20,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/conversatio
     return NextResponse.json({ conversation });
   } catch (error) {
     console.error("[/api/conversations/[id]] GET", error);
-    return NextResponse.json({ error: "Something went wrong." }, { status: 502 });
+    return NextResponse.json({ error: "We couldn't load that conversation. Please try again." }, { status: 502 });
   }
 }
 
@@ -57,7 +57,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/conversati
     return NextResponse.json({ id: conversation._id.toString(), title: conversation.title });
   } catch (error) {
     console.error("[/api/conversations/[id]] PATCH", error);
-    return NextResponse.json({ error: "Something went wrong." }, { status: 502 });
+    return NextResponse.json({ error: "We couldn't save your changes. Please try again." }, { status: 502 });
   }
 }
 
@@ -78,6 +78,6 @@ export async function DELETE(_request: Request, ctx: RouteContext<"/api/conversa
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[/api/conversations/[id]] DELETE", error);
-    return NextResponse.json({ error: "Something went wrong." }, { status: 502 });
+    return NextResponse.json({ error: "We couldn't delete that conversation. Please try again." }, { status: 502 });
   }
 }

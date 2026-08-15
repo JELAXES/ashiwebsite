@@ -45,7 +45,7 @@ export function ChatMessage({ message, onRetry, className }: ChatMessageProps) {
             <div className="flex flex-col gap-3">
               <p className="flex items-center gap-2 text-sm text-destructive">
                 <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
-                Something went wrong while generating your answer.
+                {message.errorMessage || "Something went wrong while generating your answer."}
               </p>
               {onRetry && (
                 <Button size="sm" variant="outline" onClick={onRetry} className="w-fit gap-1.5">

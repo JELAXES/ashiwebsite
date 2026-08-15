@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Settings, Flame, HelpCircle, BookCheck, Target } from "lucide-react";
+import { Settings, Flame, HelpCircle, MessageSquare } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { dashboardStats } from "@/lib/legal/mock-data";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getUserActivityStats } from "@/lib/chat/conversations";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -19,6 +19,7 @@ export default async function ProfilePage() {
     redirect("/login");
   }
   const initials = user.name.slice(0, 2).toUpperCase();
+  const stats = await getUserActivityStats(user._id.toString());
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
@@ -42,11 +43,10 @@ export default async function ProfilePage() {
         </Link>
       </div>
 
-      <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Study streak" value={dashboardStats.studyStreak} suffix="days" icon={Flame} emphasize />
-        <StatCard label="Questions asked" value={dashboardStats.questionsAsked} icon={HelpCircle} />
-        <StatCard label="Topics completed" value={dashboardStats.topicsCompleted} icon={BookCheck} />
-        <StatCard label="Quiz accuracy" value={dashboardStats.quizAccuracy} suffix="%" icon={Target} />
+      <div className="mt-8 grid grid-cols-3 gap-4">
+        <StatCard label="Study streak" value={stats.studyStreakDays} suffix="days" icon={Flame} emphasize />
+        <StatCard label="Questions asked" value={stats.questionsAsked} icon={HelpCircle} />
+        <StatCard label="Conversations" value={stats.conversationCount} icon={MessageSquare} />
       </div>
 
       <div className="mt-8 rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { History, Pencil, Trash2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,16 +51,19 @@ export function HistoryView({ initialConversations }: HistoryViewProps) {
     if (!renameTarget || !renameValue.trim()) return;
     const title = renameValue.trim();
     const target = renameTarget;
+    const previousTitle = target.title;
     setItems((prev) => prev.map((c) => (c.id === target.id ? { ...c, title } : c)));
     setRenameTarget(null);
     try {
-      await fetch(`/api/conversations/${target.id}`, {
+      const res = await fetch(`/api/conversations/${target.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title }),
       });
-    } catch (error) {
-      console.error("[HistoryView] rename failed", error);
+      if (!res.ok) throw new Error();
+    } catch {
+      setItems((prev) => prev.map((c) => (c.id === target.id ? { ...c, title: previousTitle } : c)));
+      toast.error("We couldn't save your changes. Please try again.");
     }
   }
 
@@ -69,9 +73,14 @@ export function HistoryView({ initialConversations }: HistoryViewProps) {
     setItems((prev) => prev.filter((c) => c.id !== target.id));
     setDeleteTarget(null);
     try {
-      await fetch(`/api/conversations/${target.id}`, { method: "DELETE" });
-    } catch (error) {
-      console.error("[HistoryView] delete failed", error);
+      const res = await fetch(`/api/conversations/${target.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setItems((prev) => {
+        if (prev.some((c) => c.id === target.id)) return prev;
+        return [...prev, target].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      });
+      toast.error("We couldn't delete that conversation. Please try again.");
     }
   }
 

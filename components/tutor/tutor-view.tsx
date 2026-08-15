@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
-import { MessageSquarePlus, PanelLeft, Info, Sparkles } from "lucide-react";
+import { MessageSquarePlus, PanelLeft, Info, Sparkles, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { ChatMessage } from "@/components/chat/chat-message";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { FollowUpSuggestions } from "@/components/chat/follow-up-suggestions";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -15,11 +17,34 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { subjects } from "@/lib/legal/subjects";
 import { renderSubjectIcon } from "@/lib/legal/icon-map";
 import type { ChatApiRequest, ChatApiResponse, ChatMessageData } from "@/lib/chat/types";
 import type { ConversationSummary } from "@/lib/chat/conversations";
 import { cn } from "@/lib/utils";
+
+const REQUEST_TIMEOUT_MS = 45_000;
+const NETWORK_ERROR_MESSAGE = "Couldn't reach StudyRex. Check your connection and try again.";
+const TIMEOUT_ERROR_MESSAGE = "That took too long to answer. Please try again.";
+const GENERIC_ERROR_MESSAGE = "StudyRex AI is temporarily unavailable. Please try again.";
 
 const STARTER_PROMPTS = [
   "What is the basic structure doctrine?",
@@ -59,33 +84,52 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
   const [historyOpen, setHistoryOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
+  // Synchronous guard against a double-fire (e.g. a very fast double click/Enter)
+  // landing before React has re-rendered the disabled composer — state alone
+  // isn't enough since both events can read stale state in the same tick.
+  const sendingRef = useRef(false);
 
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
 
-  useEffect(() => {
+  function refreshConversationList() {
     fetch("/api/conversations")
       .then((res) => (res.ok ? res.json() : { conversations: [] }))
       .then((data) => setConversations(data.conversations ?? []))
       .catch(() => setConversations([]));
+  }
+
+  useEffect(() => {
+    refreshConversationList();
   }, []);
 
   useEffect(() => {
     if (!initialConversationId) return;
     let cancelled = false;
     fetch(`/api/conversations/${initialConversationId}`)
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => {
+        if (!res.ok) {
+          if (!cancelled) {
+            toast.error("That conversation couldn't be found.");
+            router.replace("/tutor");
+          }
+          return null;
+        }
+        return res.json();
+      })
       .then((data) => {
         if (cancelled || !data?.conversation) return;
         setMessages(data.conversation.messages);
         setSubject(data.conversation.subject || "all");
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) toast.error("Couldn't load that conversation. Please try again.");
+      });
     return () => {
       cancelled = true;
     };
-  }, [initialConversationId]);
+  }, [initialConversationId, router]);
 
   const isBusy = messages.some((m) => m.pending);
 
@@ -94,6 +138,9 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
     question: string,
     history: { role: "user" | "assistant"; content: string }[],
   ) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
     try {
       const payload: ChatApiRequest = {
         question,
@@ -105,10 +152,26 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
-      if (!res.ok) throw new Error(`Request failed with ${res.status}`);
-      const data: ChatApiResponse = await res.json();
+      if (!res.ok) {
+        let message = GENERIC_ERROR_MESSAGE;
+        try {
+          const errBody = await res.json();
+          if (typeof errBody?.error === "string" && errBody.error) message = errBody.error;
+        } catch {
+          // Response wasn't JSON — keep the generic message rather than guessing.
+        }
+        throw new Error(message);
+      }
+
+      let data: ChatApiResponse;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(GENERIC_ERROR_MESSAGE);
+      }
 
       setMessages((prev) =>
         prev.map((m) =>
@@ -117,6 +180,7 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
                 ...m,
                 pending: false,
                 error: false,
+                errorMessage: undefined,
                 content: data.answer,
                 citations: data.citations,
                 cases: data.cases,
@@ -133,21 +197,28 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
         // Shallow URL update (no client-side navigation/remount) so a page
         // refresh reloads the right conversation without losing in-memory state now.
         window.history.replaceState(null, "", `/tutor?conversation=${data.conversationId}`);
-        fetch("/api/conversations")
-          .then((res) => (res.ok ? res.json() : { conversations: [] }))
-          .then((refreshed) => setConversations(refreshed.conversations ?? []))
-          .catch(() => {});
+        refreshConversationList();
       }
-    } catch {
+    } catch (err) {
+      const message =
+        err instanceof DOMException && err.name === "AbortError"
+          ? TIMEOUT_ERROR_MESSAGE
+          : err instanceof Error && err.message
+            ? err.message
+            : NETWORK_ERROR_MESSAGE;
       setMessages((prev) =>
-        prev.map((m) => (m.id === pendingId ? { ...m, pending: false, error: true } : m)),
+        prev.map((m) => (m.id === pendingId ? { ...m, pending: false, error: true, errorMessage: message } : m)),
       );
+    } finally {
+      clearTimeout(timeout);
+      sendingRef.current = false;
     }
   }
 
   function sendQuestion(question: string) {
     const trimmed = question.trim();
-    if (!trimmed || isBusy) return;
+    if (!trimmed || isBusy || sendingRef.current) return;
+    sendingRef.current = true;
 
     const history = messages
       .filter((m) => !m.pending && !m.error)
@@ -174,17 +245,19 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
   }
 
   function retryMessage(assistantId: string) {
+    if (sendingRef.current) return;
     const idx = messages.findIndex((m) => m.id === assistantId);
     if (idx <= 0) return;
     const question = messages[idx - 1]?.content;
     if (!question) return;
+    sendingRef.current = true;
     const history = messages
       .slice(0, idx - 1)
       .filter((m) => !m.pending && !m.error)
       .map((m) => ({ role: m.role, content: m.content }));
 
     setMessages((prev) =>
-      prev.map((m) => (m.id === assistantId ? { ...m, pending: true, error: false } : m)),
+      prev.map((m) => (m.id === assistantId ? { ...m, pending: true, error: false, errorMessage: undefined } : m)),
     );
     void requestAnswer(assistantId, question, history);
   }
@@ -199,6 +272,34 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
     router.push(`/tutor?conversation=${id}`);
   }
 
+  async function renameConversation(id: string, title: string) {
+    setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
+    try {
+      const res = await fetch(`/api/conversations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      toast.error("We couldn't save your changes. Please try again.");
+      refreshConversationList();
+    }
+  }
+
+  async function deleteConversation(id: string) {
+    const wasCurrent = id === conversationId;
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    try {
+      const res = await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      if (wasCurrent) startNewChat();
+    } catch {
+      toast.error("We couldn't delete that conversation. Please try again.");
+      refreshConversationList();
+    }
+  }
+
   const lastMessage = messages[messages.length - 1];
   const showFollowUps =
     lastMessage &&
@@ -210,7 +311,13 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
   return (
     <div className="flex h-[calc(100vh-4rem)] min-h-0">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border lg:flex">
-        <HistoryPanel conversations={conversations} onNewChat={startNewChat} onSelect={resumeConversation} />
+        <HistoryPanel
+          conversations={conversations}
+          onNewChat={startNewChat}
+          onSelect={resumeConversation}
+          onRename={renameConversation}
+          onDelete={deleteConversation}
+        />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -226,7 +333,13 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
               <SheetHeader className="border-b border-border">
                 <SheetTitle>Conversations</SheetTitle>
               </SheetHeader>
-              <HistoryPanel conversations={conversations} onNewChat={startNewChat} onSelect={resumeConversation} />
+              <HistoryPanel
+                conversations={conversations}
+                onNewChat={startNewChat}
+                onSelect={resumeConversation}
+                onRename={renameConversation}
+                onDelete={deleteConversation}
+              />
             </SheetContent>
           </Sheet>
 
@@ -291,11 +404,36 @@ function HistoryPanel({
   conversations,
   onNewChat,
   onSelect,
+  onRename,
+  onDelete,
 }: {
   conversations: ConversationSummary[];
   onNewChat: () => void;
   onSelect: (conversationId: string) => void;
+  onRename: (id: string, title: string) => void;
+  onDelete: (id: string) => void;
 }) {
+  const [renameTarget, setRenameTarget] = useState<ConversationSummary | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<ConversationSummary | null>(null);
+
+  function openRename(c: ConversationSummary) {
+    setRenameTarget(c);
+    setRenameValue(c.title);
+  }
+
+  function confirmRename() {
+    if (!renameTarget || !renameValue.trim()) return;
+    onRename(renameTarget.id, renameValue.trim());
+    setRenameTarget(null);
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    onDelete(deleteTarget.id);
+    setDeleteTarget(null);
+  }
+
   return (
     <div className="flex h-full flex-col">
       <div className="p-3">
@@ -311,21 +449,90 @@ function HistoryPanel({
         {conversations.length === 0 ? (
           <p className="px-1 text-xs text-muted-foreground">No conversations yet.</p>
         ) : (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-0.5">
             {conversations.map((c) => (
-              <button
+              <div
                 key={c.id}
-                type="button"
-                onClick={() => onSelect(c.id)}
-                className="flex flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group flex items-start gap-1 rounded-md pr-1 transition-colors hover:bg-secondary"
               >
-                <span className="line-clamp-1 text-sm font-medium text-foreground">{c.title}</span>
-                <span className="line-clamp-1 text-xs text-muted-foreground">{c.subjectLabel}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onSelect(c.id)}
+                  className="flex min-w-0 flex-1 flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span className="line-clamp-1 text-sm font-medium text-foreground">{c.title}</span>
+                  <span className="line-clamp-1 text-xs text-muted-foreground">{c.subjectLabel}</span>
+                </button>
+                <div className="flex shrink-0 items-center gap-0.5 pt-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-6 text-muted-foreground hover:text-foreground"
+                    aria-label={`Rename conversation: ${c.title}`}
+                    onClick={() => openRename(c)}
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-6 text-muted-foreground hover:text-destructive"
+                    aria-label={`Delete conversation: ${c.title}`}
+                    onClick={() => setDeleteTarget(c)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
             ))}
           </div>
         )}
       </div>
+
+      <Dialog open={!!renameTarget} onOpenChange={(open) => !open && setRenameTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename conversation</DialogTitle>
+            <DialogDescription>Give this conversation a title you&apos;ll recognize later.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-1.5">
+            <Label htmlFor="tutor-rename-input">Title</Label>
+            <Input
+              id="tutor-rename-input"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && confirmRename()}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameTarget(null)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmRename} disabled={!renameValue.trim()}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{deleteTarget?.title}&rdquo; and its messages will be permanently deleted. This can&apos;t be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -356,10 +563,6 @@ function ContextPanel({
               <span className="text-sm font-semibold text-foreground">{activeSubject.name}</span>
             </div>
             <p className="text-xs text-muted-foreground">{activeSubject.description}</p>
-            <Progress value={activeSubject.progress} className="mt-3 h-1.5" />
-            <p className="mt-1.5 text-[11px] text-muted-foreground">
-              {activeSubject.topicsCompleted}/{activeSubject.topicsTotal} topics · {activeSubject.progress}%
-            </p>
             <Button variant="ghost" size="sm" className="mt-2 -ml-2" onClick={() => onSelectSubject("all")}>
               Clear focus
             </Button>

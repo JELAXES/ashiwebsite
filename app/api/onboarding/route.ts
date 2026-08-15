@@ -46,6 +46,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ user: toPublicUser(user) });
   } catch (error) {
     console.error("[/api/onboarding]", error);
-    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 502 });
+    return NextResponse.json({ error: "We couldn't save your changes. Please try again." }, { status: 502 });
   }
 }

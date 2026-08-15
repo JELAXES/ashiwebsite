@@ -9,8 +9,6 @@ import { upcomingRevision, weakAreas } from "@/lib/legal/mock-data";
 import { subjects } from "@/lib/legal/subjects";
 import { cn } from "@/lib/utils";
 
-const leastStudied = [...subjects].sort((a, b) => a.progress - b.progress).slice(0, 4);
-
 export function PlannerView() {
   const [done, setDone] = useState<Record<string, boolean>>({});
 
@@ -79,16 +77,16 @@ export function PlannerView() {
       </div>
 
       <section className="mt-10">
-        <h2 className="font-heading text-lg font-semibold text-foreground">Least-studied subjects</h2>
+        <h2 className="font-heading text-lg font-semibold text-foreground">Explore more subjects</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {leastStudied.map((s) => (
+          {subjects.slice(0, 4).map((s) => (
             <Link
               key={s.slug}
               href={`/subjects/${s.slug}`}
               className="rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <p className="text-sm font-medium text-foreground">{s.name}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{s.progress}% complete</p>
+              <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{s.description}</p>
             </Link>
           ))}
         </div>

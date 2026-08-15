@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Sun, Moon, Monitor, LogOut, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,14 +81,20 @@ export function SettingsView({ initialUser }: SettingsViewProps) {
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function saveLawLevel(level: string) {
+    const previous = lawLevel;
     setLawLevel(level);
     setLawLevelSaving(true);
     try {
-      await fetch("/api/profile", {
+      const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lawLevel: level }),
       });
+      if (!res.ok) throw new Error();
+      router.refresh();
+    } catch {
+      setLawLevel(previous);
+      toast.error("We couldn't save your changes. Please try again.");
     } finally {
       setLawLevelSaving(false);
     }

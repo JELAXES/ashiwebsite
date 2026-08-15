@@ -1,21 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Sparkles, GraduationCap, Landmark } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { CaseCard } from "@/components/legal/case-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { getSubjectBySlug, subjects } from "@/lib/legal/subjects";
+import { getSubjectBySlug } from "@/lib/legal/subjects";
 import { landmarkCases } from "@/lib/legal/cases";
 import { getQuizBySubject } from "@/lib/legal/quiz";
 import { getFlashcardsBySubject } from "@/lib/legal/flashcards";
 import { renderSubjectIcon } from "@/lib/legal/icon-map";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getUserActivityStats } from "@/lib/chat/conversations";
 import { cn } from "@/lib/utils";
-
-export function generateStaticParams() {
-  return subjects.map((s) => ({ slug: s.slug }));
-}
 
 export async function generateMetadata(props: PageProps<"/subjects/[slug]">): Promise<Metadata> {
   const { slug } = await props.params;
@@ -27,6 +24,13 @@ export default async function SubjectDetailPage(props: PageProps<"/subjects/[slu
   const { slug } = await props.params;
   const subject = getSubjectBySlug(slug);
   if (!subject) notFound();
+
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login");
+  }
+  const stats = await getUserActivityStats(user._id.toString());
+  const activity = stats.subjectActivity[subject.slug];
 
   const relatedCases = landmarkCases.filter((c) => c.subject === subject.name).slice(0, 3);
   const quizCount = getQuizBySubject(subject.slug).length;
@@ -55,29 +59,21 @@ export default async function SubjectDetailPage(props: PageProps<"/subjects/[slu
         </Link>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-border bg-card p-5">
-          <p className="text-xs font-medium text-muted-foreground">Progress</p>
-          <p className="mt-2 font-heading text-2xl font-semibold text-primary">{subject.progress}%</p>
-          <Progress value={subject.progress} className="mt-3 h-1.5" />
-          <p className="mt-2 text-xs text-muted-foreground">
-            {subject.topicsCompleted}/{subject.topicsTotal} topics completed
-          </p>
-        </div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-lg border border-border bg-card p-5">
           <p className="text-xs font-medium text-muted-foreground">Questions asked</p>
           <p className="mt-2 font-heading text-2xl font-semibold text-foreground">
-            {subject.questionsAsked}
+            {activity?.questionsAsked ?? 0}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">via the AI Tutor</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-5">
           <p className="text-xs font-medium text-muted-foreground">Last studied</p>
           <p className="mt-2 font-heading text-2xl font-semibold text-foreground">
-            {subject.lastStudied ?? "—"}
+            {activity?.lastStudied ? new Date(activity.lastStudied).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—"}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            {subject.lastStudied ? "Keep the streak going" : "Not started yet"}
+            {activity?.lastStudied ? "Keep the streak going" : "Not started yet"}
           </p>
         </div>
       </div>

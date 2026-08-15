@@ -23,6 +23,8 @@ export interface ChatMessageData {
   createdAt: string;
   pending?: boolean;
   error?: boolean;
+  /** User-safe error message to show instead of the generic fallback. Never a raw stack/API error. */
+  errorMessage?: string;
 }
 
 export interface ChatApiRequest {

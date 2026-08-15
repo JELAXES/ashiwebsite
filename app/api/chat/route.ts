@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { getGeminiClient, GEMINI_MODEL } from "@/lib/gemini/client";
-import { buildSystemPrompt } from "@/lib/gemini/system-prompt";
+import { buildSystemPrompt, type StudentContext } from "@/lib/gemini/system-prompt";
 import { answerSchema } from "@/lib/gemini/schema";
 import { checkRateLimit } from "@/lib/gemini/rate-limit";
 import type { ChatApiRequest, ChatApiResponse, ChatRole } from "@/lib/chat/types";
-import { getSession } from "@/lib/auth/session";
+import { getCurrentUser } from "@/lib/auth/session";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Conversation } from "@/lib/db/models/conversation";
+import { subjects } from "@/lib/legal/subjects";
+
+const AI_UNAVAILABLE_MESSAGE = "StudyRex AI is temporarily unavailable. Please try again.";
 
 /**
  * Persists a chat turn for the signed-in user. Best-effort: a persistence
@@ -14,14 +17,12 @@ import { Conversation } from "@/lib/db/models/conversation";
  * that's already been generated, so failures are logged and swallowed.
  */
 async function persistTurn(
+  userId: string,
   conversationId: string | undefined,
   question: string,
   subjectHint: string | undefined,
   result: ChatApiResponse,
 ): Promise<string | undefined> {
-  const session = await getSession();
-  if (!session) return undefined;
-
   try {
     await connectToDatabase();
 
@@ -40,7 +41,7 @@ async function persistTurn(
 
     if (conversationId) {
       const updated = await Conversation.findOneAndUpdate(
-        { _id: conversationId, userId: session.userId },
+        { _id: conversationId, userId },
         { $push: { messages: { $each: [userMessage, assistantMessage] } } },
         { new: true },
       );
@@ -48,7 +49,7 @@ async function persistTurn(
     }
 
     const created = await Conversation.create({
-      userId: session.userId,
+      userId,
       title: question.slice(0, 60),
       subject: subjectHint || result.subject,
       messages: [userMessage, assistantMessage],
@@ -106,6 +107,18 @@ export async function POST(request: Request) {
   const subject = typeof body.subject === "string" ? body.subject : undefined;
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : undefined;
 
+  const user = await getCurrentUser().catch(() => null);
+  const studentContext: StudentContext | undefined = user
+    ? {
+        firstName: user.name?.split(" ")[0],
+        lawLevel: user.lawLevel ?? undefined,
+        subjectNames: (user.subjects ?? [])
+          .map((slug) => subjects.find((s) => s.slug === slug)?.name)
+          .filter((name): name is string => !!name),
+      }
+    : undefined;
+
+  let raw: Partial<ChatApiResponse>;
   try {
     const client = getGeminiClient();
 
@@ -121,7 +134,7 @@ export async function POST(request: Request) {
       model: GEMINI_MODEL,
       contents,
       config: {
-        systemInstruction: buildSystemPrompt(subject),
+        systemInstruction: buildSystemPrompt(subject, studentContext),
         responseMimeType: "application/json",
         responseSchema: answerSchema,
         maxOutputTokens: 3072,
@@ -133,32 +146,36 @@ export async function POST(request: Request) {
       throw new Error("Model returned an empty response.");
     }
 
-    const raw = JSON.parse(text) as Partial<ChatApiResponse>;
+    try {
+      raw = JSON.parse(text) as Partial<ChatApiResponse>;
+    } catch (parseError) {
+      console.error("[/api/chat] malformed JSON from model", parseError, text.slice(0, 500));
+      throw new Error("Model returned a malformed response.");
+    }
 
     if (!raw.answer || typeof raw.answer !== "string") {
       throw new Error("Model returned an empty answer.");
     }
-
-    const result: ChatApiResponse = {
-      answer: raw.answer,
-      subject: typeof raw.subject === "string" && raw.subject ? raw.subject : subject || "constitutional-law",
-      citations: Array.isArray(raw.citations) ? raw.citations : [],
-      cases: Array.isArray(raw.cases) ? raw.cases : [],
-      followUps: Array.isArray(raw.followUps) ? raw.followUps.slice(0, 3) : [],
-      ...(typeof raw.examTip === "string" && raw.examTip ? { examTip: raw.examTip } : {}),
-    };
-
-    const persistedConversationId = await persistTurn(conversationId, question, subject, result);
-
-    return NextResponse.json({
-      ...result,
-      ...(persistedConversationId ? { conversationId: persistedConversationId } : {}),
-    });
   } catch (error) {
     console.error("[/api/chat]", error);
-    return NextResponse.json(
-      { error: "Something went wrong while generating your answer. Please try again." },
-      { status: 502 },
-    );
+    return NextResponse.json({ error: AI_UNAVAILABLE_MESSAGE }, { status: 502 });
   }
+
+  const result: ChatApiResponse = {
+    answer: raw.answer as string,
+    subject: typeof raw.subject === "string" && raw.subject ? raw.subject : subject || "constitutional-law",
+    citations: Array.isArray(raw.citations) ? raw.citations : [],
+    cases: Array.isArray(raw.cases) ? raw.cases : [],
+    followUps: Array.isArray(raw.followUps) ? raw.followUps.slice(0, 3) : [],
+    ...(typeof raw.examTip === "string" && raw.examTip ? { examTip: raw.examTip } : {}),
+  };
+
+  const persistedConversationId = user
+    ? await persistTurn(user._id.toString(), conversationId, question, subject, result)
+    : undefined;
+
+  return NextResponse.json({
+    ...result,
+    ...(persistedConversationId ? { conversationId: persistedConversationId } : {}),
+  });
 }

@@ -6,8 +6,13 @@ import { Input } from "@/components/ui/input";
 import { SubjectCard } from "@/components/legal/subject-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { subjects } from "@/lib/legal/subjects";
+import type { SubjectActivity } from "@/lib/chat/conversations";
 
-export function SubjectsGrid() {
+interface SubjectsGridProps {
+  activity: Record<string, SubjectActivity>;
+}
+
+export function SubjectsGrid({ activity }: SubjectsGridProps) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -41,7 +46,7 @@ export function SubjectsGrid() {
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((s) => (
-            <SubjectCard key={s.slug} subject={s} />
+            <SubjectCard key={s.slug} subject={s} activity={activity[s.slug]} />
           ))}
         </div>
       )}

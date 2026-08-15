@@ -13,6 +13,6 @@ export async function GET() {
     return NextResponse.json({ conversations });
   } catch (error) {
     console.error("[/api/conversations]", error);
-    return NextResponse.json({ error: "Something went wrong." }, { status: 502 });
+    return NextResponse.json({ error: "We couldn't load your conversations. Please try again." }, { status: 502 });
   }
 }

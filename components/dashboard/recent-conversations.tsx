@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { getSession } from "@/lib/auth/session";
-import { listConversationSummaries } from "@/lib/chat/conversations";
+import type { ConversationSummary } from "@/lib/chat/conversations";
 
 function relativeTime(iso: string) {
   const hours = Math.round((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60));
@@ -9,16 +8,14 @@ function relativeTime(iso: string) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-export async function RecentConversations() {
-  const session = await getSession();
-  let conversations: Awaited<ReturnType<typeof listConversationSummaries>> = [];
-  if (session) {
-    try {
-      conversations = await listConversationSummaries(session.userId);
-    } catch (error) {
-      console.error("[RecentConversations]", error);
-    }
-  }
+interface RecentConversationsProps {
+  conversations: ConversationSummary[];
+}
+
+/** Takes conversations as a prop (fetched once by the parent) rather than
+ * re-querying MongoDB itself — avoids a duplicate query on the dashboard,
+ * which already fetches the user's conversations for activity stats. */
+export function RecentConversations({ conversations }: RecentConversationsProps) {
   const recent = conversations.slice(0, 5);
 
   if (recent.length === 0) {
