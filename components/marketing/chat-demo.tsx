@@ -58,7 +58,7 @@ export function ChatDemo() {
               <Sparkles className="size-3.5 text-primary" aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">LexLearn AI Tutor</p>
+              <p className="text-sm font-semibold text-foreground">StudyRex AI Tutor</p>
               <p className="text-[11px] text-muted-foreground">Indian Law Study Mode · Criminal Law</p>
             </div>
           </div>

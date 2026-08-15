@@ -1,20 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Sparkles, Flame, HelpCircle, BookCheck, Target } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { SubjectCard } from "@/components/legal/subject-card";
 import { CaseCard } from "@/components/legal/case-card";
 import { LegalDisclaimer } from "@/components/legal/legal-disclaimer";
+import { RecentConversations } from "@/components/dashboard/recent-conversations";
 import { subjects } from "@/lib/legal/subjects";
 import { landmarkCases } from "@/lib/legal/cases";
-import {
-  dashboardStats,
-  recentConversations,
-  weakAreas,
-  upcomingRevision,
-  studentName,
-} from "@/lib/legal/mock-data";
+import { dashboardStats, weakAreas, upcomingRevision } from "@/lib/legal/mock-data";
+import { getCurrentUser } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -28,11 +25,11 @@ function greeting() {
   return "Good evening";
 }
 
-function relativeTime(iso: string) {
-  const hours = Math.round((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60));
-  if (hours < 1) return "Just now";
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
+function prepLabel(lawLevel: string | null | undefined) {
+  if (!lawLevel) return null;
+  if (lawLevel === "CLAT") return "CLAT Preparation";
+  if (lawLevel === "Judiciary") return "Judiciary Preparation";
+  return lawLevel;
 }
 
 const continueStudying = subjects
@@ -45,7 +42,14 @@ const recommendedTopics = subjects
   .sort((a, b) => a.progress - b.progress)
   .slice(0, 3);
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login");
+  }
+  const firstName = user.name.split(" ")[0];
+  const prep = prepLabel(user.lawLevel);
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
@@ -55,8 +59,11 @@ export default function DashboardPage() {
             {dashboardStats.studyStreak}-day study streak
           </p>
           <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-balance text-foreground sm:text-3xl">
-            {greeting()}, {studentName}.
+            {greeting()}, {firstName}.
           </h1>
+          {prep && (
+            <p className="mt-1 text-sm font-medium text-primary">{prep}</p>
+          )}
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
             Pick up where you left off, or ask the AI tutor anything about Indian law.
           </p>
@@ -96,26 +103,7 @@ export default function DashboardPage() {
               View history
             </Link>
           </div>
-          <div className="mt-4 divide-y divide-border rounded-lg border border-border bg-card">
-            {recentConversations.map((c) => (
-              <Link
-                key={c.id}
-                href={`/tutor?conversation=${c.id}`}
-                className="flex items-center justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">{c.title}</p>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{c.preview}</p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-xs text-muted-foreground">{relativeTime(c.updatedAt)}</span>
-                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">
-                    {c.subjectLabel}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <RecentConversations />
         </section>
 
         <section>

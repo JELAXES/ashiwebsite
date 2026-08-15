@@ -25,13 +25,13 @@ const sourceSerif = Source_Serif_4({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://lexlearn.app"),
+  metadataBase: new URL("https://studyrex.app"),
   title: {
-    default: "LexLearn — Master Indian Law with AI",
-    template: "%s · LexLearn",
+    default: "StudyRex — Master Indian Law with AI",
+    template: "%s · StudyRex",
   },
   description:
-    "LexLearn is an AI-powered study companion for Indian law students, CLAT aspirants, and judiciary candidates. Understand sections, cases, and constitutional principles faster.",
+    "StudyRex is an AI-powered study companion for Indian law students, CLAT aspirants, and judiciary candidates. Understand sections, cases, and constitutional principles faster.",
   keywords: [
     "Indian law",
     "CLAT preparation",

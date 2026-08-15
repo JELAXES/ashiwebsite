@@ -14,7 +14,7 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -28,7 +28,23 @@ export function LoginForm() {
     }
 
     setLoading(true);
-    setTimeout(() => router.push("/dashboard"), 600);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Something went wrong. Please try again.");
+        setLoading(false);
+        return;
+      }
+      router.push("/dashboard");
+    } catch {
+      setError("Network error. Please try again.");
+      setLoading(false);
+    }
   }
 
   return (

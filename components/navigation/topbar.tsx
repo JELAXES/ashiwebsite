@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Menu, Search, Bell, LogOut, Settings, User as UserIcon } from "lucide-react";
 import { Logo } from "./logo";
 import { SidebarNav } from "./sidebar-nav";
@@ -23,7 +24,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { studentName } from "@/lib/legal/mock-data";
 
 const notifications = [
   { id: 1, title: "Revision due", body: "Fundamental Rights flashcards are due today.", time: "2h ago" },
@@ -33,12 +33,20 @@ const notifications = [
 
 interface TopbarProps {
   contextLabel?: string;
+  user: { name: string; email: string };
 }
 
-export function Topbar({ contextLabel }: TopbarProps) {
+export function Topbar({ contextLabel, user }: TopbarProps) {
+  const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const initials = studentName.slice(0, 2).toUpperCase();
+  const initials = user.name.slice(0, 2).toUpperCase();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur-md sm:px-6">
@@ -70,7 +78,7 @@ export function Topbar({ contextLabel }: TopbarProps) {
         className="ml-auto flex w-full max-w-xs items-center gap-2 rounded-md border border-border bg-secondary/50 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-sm"
       >
         <Search className="size-4" aria-hidden="true" />
-        <span className="hidden sm:inline">Search LexLearn...</span>
+        <span className="hidden sm:inline">Search StudyRex...</span>
         <span className="sm:hidden">Search...</span>
         <kbd className="ml-auto hidden rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline">
           ⌘K
@@ -112,7 +120,7 @@ export function Topbar({ contextLabel }: TopbarProps) {
           </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>{studentName}</DropdownMenuLabel>
+          <DropdownMenuLabel>{user.name}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem render={<Link href="/profile" />}>
             <UserIcon /> Profile
@@ -121,7 +129,7 @@ export function Topbar({ contextLabel }: TopbarProps) {
             <Settings /> Settings
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem render={<Link href="/" />} variant="destructive">
+          <DropdownMenuItem variant="destructive" onClick={handleLogout}>
             <LogOut /> Log out
           </DropdownMenuItem>
         </DropdownMenuContent>

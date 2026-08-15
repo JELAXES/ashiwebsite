@@ -66,11 +66,11 @@ export function Footer() {
 
         <div className="mt-12 flex flex-col gap-4 border-t border-border pt-8 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-2xl text-xs text-muted-foreground">
-            LexLearn provides educational information and is not a substitute for professional
+            StudyRex provides educational information and is not a substitute for professional
             legal advice.
           </p>
           <p className="text-xs text-muted-foreground/70">
-            © {new Date().getFullYear()} LexLearn. All rights reserved.
+            © {new Date().getFullYear()} StudyRex. All rights reserved.
           </p>
         </div>
       </div>

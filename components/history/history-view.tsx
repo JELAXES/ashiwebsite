@@ -25,35 +25,54 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { recentConversations as initialConversations, type Conversation } from "@/lib/legal/mock-data";
+import type { ConversationSummary } from "@/lib/chat/conversations";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function HistoryView() {
-  const [items, setItems] = useState<Conversation[]>(initialConversations);
-  const [renameTarget, setRenameTarget] = useState<Conversation | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
+interface HistoryViewProps {
+  initialConversations: ConversationSummary[];
+}
 
-  function openRename(c: Conversation) {
+export function HistoryView({ initialConversations }: HistoryViewProps) {
+  const [items, setItems] = useState<ConversationSummary[]>(initialConversations);
+  const [renameTarget, setRenameTarget] = useState<ConversationSummary | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<ConversationSummary | null>(null);
+
+  function openRename(c: ConversationSummary) {
     setRenameTarget(c);
     setRenameValue(c.title);
   }
 
-  function confirmRename() {
+  async function confirmRename() {
     if (!renameTarget || !renameValue.trim()) return;
-    setItems((prev) =>
-      prev.map((c) => (c.id === renameTarget.id ? { ...c, title: renameValue.trim() } : c)),
-    );
+    const title = renameValue.trim();
+    const target = renameTarget;
+    setItems((prev) => prev.map((c) => (c.id === target.id ? { ...c, title } : c)));
     setRenameTarget(null);
+    try {
+      await fetch(`/api/conversations/${target.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+    } catch (error) {
+      console.error("[HistoryView] rename failed", error);
+    }
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return;
-    setItems((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+    const target = deleteTarget;
+    setItems((prev) => prev.filter((c) => c.id !== target.id));
     setDeleteTarget(null);
+    try {
+      await fetch(`/api/conversations/${target.id}`, { method: "DELETE" });
+    } catch (error) {
+      console.error("[HistoryView] delete failed", error);
+    }
   }
 
   if (items.length === 0) {

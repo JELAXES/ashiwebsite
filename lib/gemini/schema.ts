@@ -15,7 +15,7 @@ export const answerSchema: Schema = {
     subject: {
       type: Type.STRING,
       enum: subjectSlugs,
-      description: "The single best-matching LexLearn subject slug for this question.",
+      description: "The single best-matching StudyRex subject slug for this question.",
     },
     citations: {
       type: Type.ARRAY,

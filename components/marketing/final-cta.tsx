@@ -19,7 +19,7 @@ export function FinalCta() {
             <ArrowRight className="size-4" />
           </Link>
           <Link href="/#features" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "h-11 px-6 text-base")}>
-            Explore LexLearn
+            Explore StudyRex
           </Link>
         </div>
       </div>

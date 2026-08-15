@@ -24,7 +24,7 @@ export function SignupForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -42,7 +42,23 @@ export function SignupForm() {
     }
 
     setLoading(true);
-    setTimeout(() => router.push("/dashboard"), 600);
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Something went wrong. Please try again.");
+        setLoading(false);
+        return;
+      }
+      router.push("/onboarding");
+    } catch {
+      setError("Network error. Please try again.");
+      setLoading(false);
+    }
   }
 
   return (
@@ -55,7 +71,7 @@ export function SignupForm() {
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <div className="grid gap-1.5">
           <Label htmlFor="signup-name">Name</Label>
-          <Input id="signup-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Aditi Sharma" />
+          <Input id="signup-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="signup-email">Email</Label>

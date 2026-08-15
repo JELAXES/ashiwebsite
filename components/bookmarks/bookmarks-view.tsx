@@ -82,7 +82,7 @@ export function BookmarksView() {
           title={items.length === 0 ? "No bookmarks yet" : "No bookmarks in this category"}
           description={
             items.length === 0
-              ? "Save AI answers, sections, cases, and quiz questions from anywhere in LexLearn to find them here."
+              ? "Save AI answers, sections, cases, and quiz questions from anywhere in StudyRex to find them here."
               : "Try a different filter."
           }
           action={

@@ -51,7 +51,7 @@ export function Hero() {
               <div className="flex size-7 items-center justify-center rounded-full bg-primary/15">
                 <Sparkles className="size-3.5 text-primary" aria-hidden="true" />
               </div>
-              <span className="text-xs font-medium text-muted-foreground">LexLearn AI Tutor</span>
+              <span className="text-xs font-medium text-muted-foreground">StudyRex AI Tutor</span>
             </div>
 
             <div className="mt-4 space-y-3">

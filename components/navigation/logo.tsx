@@ -55,7 +55,7 @@ export function Logo({ className, markSize = 28, wordmarkClassName }: LogoProps)
           wordmarkClassName,
         )}
       >
-        LexLearn
+        StudyRex
       </span>
     </span>
   );

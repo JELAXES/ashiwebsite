@@ -27,7 +27,7 @@ export function HowItWorks() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            How LexLearn works.
+            How StudyRex works.
           </h2>
         </div>
 

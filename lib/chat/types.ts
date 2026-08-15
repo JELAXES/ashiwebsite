@@ -29,6 +29,8 @@ export interface ChatApiRequest {
   question: string;
   chatHistory: { role: ChatRole; content: string }[];
   subject?: string;
+  /** Existing conversation to append to. Omit to start (and persist) a new one. */
+  conversationId?: string;
 }
 
 export interface ChatApiResponse {
@@ -38,4 +40,6 @@ export interface ChatApiResponse {
   cases: ChatCaseRef[];
   followUps: string[];
   examTip?: string;
+  /** Set when the turn was persisted — the caller's new or existing conversation id. */
+  conversationId?: string;
 }

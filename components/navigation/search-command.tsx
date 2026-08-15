@@ -45,7 +45,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     <CommandDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Search LexLearn"
+      title="Search StudyRex"
       description="Search across acts, sections, cases, subjects, and conversations"
     >
       <CommandInput placeholder="Search acts, sections, cases, subjects, conversations..." />

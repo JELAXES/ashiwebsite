@@ -143,5 +143,3 @@ export const dashboardStats = {
   topicsCompleted: 72,
   quizAccuracy: 78,
 };
-
-export const studentName = "Aditi";

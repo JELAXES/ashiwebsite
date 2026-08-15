@@ -4,6 +4,61 @@ import { buildSystemPrompt } from "@/lib/gemini/system-prompt";
 import { answerSchema } from "@/lib/gemini/schema";
 import { checkRateLimit } from "@/lib/gemini/rate-limit";
 import type { ChatApiRequest, ChatApiResponse, ChatRole } from "@/lib/chat/types";
+import { getSession } from "@/lib/auth/session";
+import { connectToDatabase } from "@/lib/db/mongodb";
+import { Conversation } from "@/lib/db/models/conversation";
+
+/**
+ * Persists a chat turn for the signed-in user. Best-effort: a persistence
+ * failure (e.g. MongoDB unreachable) must never break the Gemini answer
+ * that's already been generated, so failures are logged and swallowed.
+ */
+async function persistTurn(
+  conversationId: string | undefined,
+  question: string,
+  subjectHint: string | undefined,
+  result: ChatApiResponse,
+): Promise<string | undefined> {
+  const session = await getSession();
+  if (!session) return undefined;
+
+  try {
+    await connectToDatabase();
+
+    const userMessage = { id: crypto.randomUUID(), role: "user" as const, content: question, createdAt: new Date() };
+    const assistantMessage = {
+      id: crypto.randomUUID(),
+      role: "assistant" as const,
+      content: result.answer,
+      citations: result.citations,
+      cases: result.cases,
+      followUps: result.followUps,
+      examTip: result.examTip,
+      subject: result.subject,
+      createdAt: new Date(),
+    };
+
+    if (conversationId) {
+      const updated = await Conversation.findOneAndUpdate(
+        { _id: conversationId, userId: session.userId },
+        { $push: { messages: { $each: [userMessage, assistantMessage] } } },
+        { new: true },
+      );
+      if (updated) return updated._id.toString();
+    }
+
+    const created = await Conversation.create({
+      userId: session.userId,
+      title: question.slice(0, 60),
+      subject: subjectHint || result.subject,
+      messages: [userMessage, assistantMessage],
+    });
+    return created._id.toString();
+  } catch (error) {
+    console.error("[/api/chat] persistTurn failed", error);
+    return undefined;
+  }
+}
 
 const MAX_QUESTION_LENGTH = 2000;
 const MAX_HISTORY_MESSAGES = 10;
@@ -49,6 +104,7 @@ export async function POST(request: Request) {
     : [];
 
   const subject = typeof body.subject === "string" ? body.subject : undefined;
+  const conversationId = typeof body.conversationId === "string" ? body.conversationId : undefined;
 
   try {
     const client = getGeminiClient();
@@ -92,7 +148,12 @@ export async function POST(request: Request) {
       ...(typeof raw.examTip === "string" && raw.examTip ? { examTip: raw.examTip } : {}),
     };
 
-    return NextResponse.json(result);
+    const persistedConversationId = await persistTurn(conversationId, question, subject, result);
+
+    return NextResponse.json({
+      ...result,
+      ...(persistedConversationId ? { conversationId: persistedConversationId } : {}),
+    });
   } catch (error) {
     console.error("[/api/chat]", error);
     return NextResponse.json(

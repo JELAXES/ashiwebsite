@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { MessageSquarePlus, PanelLeft, Info, Sparkles } from "lucide-react";
 import { ChatMessage } from "@/components/chat/chat-message";
 import { ChatComposer } from "@/components/chat/chat-composer";
@@ -16,9 +16,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { subjects } from "@/lib/legal/subjects";
-import { recentConversations } from "@/lib/legal/mock-data";
 import { renderSubjectIcon } from "@/lib/legal/icon-map";
 import type { ChatApiRequest, ChatApiResponse, ChatMessageData } from "@/lib/chat/types";
+import type { ConversationSummary } from "@/lib/chat/conversations";
 import { cn } from "@/lib/utils";
 
 const STARTER_PROMPTS = [
@@ -35,23 +35,9 @@ function newId() {
 }
 
 function initialSubjectFromParams(searchParams: ReadonlyURLSearchParams): string {
-  const conversationId = searchParams.get("conversation");
-  if (conversationId) {
-    const conversation = recentConversations.find((c) => c.id === conversationId);
-    if (conversation) return conversation.subject;
-  }
   const subjectParam = searchParams.get("subject");
   if (subjectParam && subjects.some((s) => s.slug === subjectParam)) return subjectParam;
   return "all";
-}
-
-function initialInputFromParams(searchParams: ReadonlyURLSearchParams): string {
-  const conversationId = searchParams.get("conversation");
-  if (conversationId) {
-    const conversation = recentConversations.find((c) => c.id === conversationId);
-    if (conversation) return conversation.preview;
-  }
-  return "";
 }
 
 export function TutorView() {
@@ -63,9 +49,13 @@ export function TutorView() {
 }
 
 function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParams }) {
+  const router = useRouter();
+  const initialConversationId = searchParams.get("conversation") ?? undefined;
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
-  const [input, setInput] = useState(() => initialInputFromParams(searchParams));
+  const [input, setInput] = useState("");
   const [subject, setSubject] = useState(() => initialSubjectFromParams(searchParams));
+  const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
@@ -73,6 +63,29 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
+
+  useEffect(() => {
+    fetch("/api/conversations")
+      .then((res) => (res.ok ? res.json() : { conversations: [] }))
+      .then((data) => setConversations(data.conversations ?? []))
+      .catch(() => setConversations([]));
+  }, []);
+
+  useEffect(() => {
+    if (!initialConversationId) return;
+    let cancelled = false;
+    fetch(`/api/conversations/${initialConversationId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.conversation) return;
+        setMessages(data.conversation.messages);
+        setSubject(data.conversation.subject || "all");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [initialConversationId]);
 
   const isBusy = messages.some((m) => m.pending);
 
@@ -86,6 +99,7 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
         question,
         chatHistory: history,
         subject: subject === "all" ? undefined : subject,
+        conversationId,
       };
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -113,6 +127,17 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
             : m,
         ),
       );
+
+      if (data.conversationId && data.conversationId !== conversationId) {
+        setConversationId(data.conversationId);
+        // Shallow URL update (no client-side navigation/remount) so a page
+        // refresh reloads the right conversation without losing in-memory state now.
+        window.history.replaceState(null, "", `/tutor?conversation=${data.conversationId}`);
+        fetch("/api/conversations")
+          .then((res) => (res.ok ? res.json() : { conversations: [] }))
+          .then((refreshed) => setConversations(refreshed.conversations ?? []))
+          .catch(() => {});
+      }
     } catch {
       setMessages((prev) =>
         prev.map((m) => (m.id === pendingId ? { ...m, pending: false, error: true } : m)),
@@ -165,18 +190,13 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
   }
 
   function startNewChat() {
-    setMessages([]);
-    setInput("");
     setHistoryOpen(false);
+    router.push("/tutor");
   }
 
-  function resumeConversation(conversationId: string) {
-    const conversation = recentConversations.find((c) => c.id === conversationId);
-    if (!conversation) return;
-    setMessages([]);
-    setSubject(conversation.subject);
-    setInput(conversation.preview);
+  function resumeConversation(id: string) {
     setHistoryOpen(false);
+    router.push(`/tutor?conversation=${id}`);
   }
 
   const lastMessage = messages[messages.length - 1];
@@ -190,7 +210,7 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
   return (
     <div className="flex h-[calc(100vh-4rem)] min-h-0">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border lg:flex">
-        <HistoryPanel onNewChat={startNewChat} onSelect={resumeConversation} />
+        <HistoryPanel conversations={conversations} onNewChat={startNewChat} onSelect={resumeConversation} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -206,7 +226,7 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
               <SheetHeader className="border-b border-border">
                 <SheetTitle>Conversations</SheetTitle>
               </SheetHeader>
-              <HistoryPanel onNewChat={startNewChat} onSelect={resumeConversation} />
+              <HistoryPanel conversations={conversations} onNewChat={startNewChat} onSelect={resumeConversation} />
             </SheetContent>
           </Sheet>
 
@@ -268,9 +288,11 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
 }
 
 function HistoryPanel({
+  conversations,
   onNewChat,
   onSelect,
 }: {
+  conversations: ConversationSummary[];
   onNewChat: () => void;
   onSelect: (conversationId: string) => void;
 }) {
@@ -286,19 +308,23 @@ function HistoryPanel({
         <p className="px-1 pb-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
           Recent
         </p>
-        <div className="flex flex-col gap-1">
-          {recentConversations.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => onSelect(c.id)}
-              className="flex flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="line-clamp-1 text-sm font-medium text-foreground">{c.title}</span>
-              <span className="line-clamp-1 text-xs text-muted-foreground">{c.subjectLabel}</span>
-            </button>
-          ))}
-        </div>
+        {conversations.length === 0 ? (
+          <p className="px-1 text-xs text-muted-foreground">No conversations yet.</p>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {conversations.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onSelect(c.id)}
+                className="flex flex-col items-start gap-0.5 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="line-clamp-1 text-sm font-medium text-foreground">{c.title}</span>
+                <span className="line-clamp-1 text-xs text-muted-foreground">{c.subjectLabel}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -2,13 +2,13 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
-import Link from "next/link";
-import { Sun, Moon, Monitor, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Sun, Moon, Monitor, LogOut, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { studentName } from "@/lib/legal/mock-data";
+import { LAW_LEVELS } from "@/lib/auth/constants";
 import { cn } from "@/lib/utils";
 
 const themeOptions = [
@@ -17,7 +17,13 @@ const themeOptions = [
   { value: "system", label: "System", icon: Monitor },
 ] as const;
 
-const examTargets = ["CLAT", "Judiciary Services", "Both", "Not sure yet"];
+interface SettingsViewProps {
+  initialUser: {
+    name: string;
+    email: string;
+    lawLevel: string | null;
+  };
+}
 
 const noopSubscribe = () => () => {};
 
@@ -54,21 +60,73 @@ function SettingsSection({
   );
 }
 
-export function SettingsView() {
+export function SettingsView({ initialUser }: SettingsViewProps) {
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const mounted = useMounted();
-  const [examTarget, setExamTarget] = useState("CLAT");
+  const [lawLevel, setLawLevel] = useState(initialUser.lawLevel ?? "");
+  const [lawLevelSaving, setLawLevelSaving] = useState(false);
   const [notifications, setNotifications] = useState<Record<string, boolean>>({
     revision: true,
     digest: true,
     product: false,
   });
   const [analytics, setAnalytics] = useState(true);
-  const [email, setEmail] = useState("aditi@example.com");
+  const [name, setName] = useState(initialUser.name);
+  const [email, setEmail] = useState(initialUser.email);
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const [accountSaved, setAccountSaved] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function saveLawLevel(level: string) {
+    setLawLevel(level);
+    setLawLevelSaving(true);
+    try {
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lawLevel: level }),
+      });
+    } finally {
+      setLawLevelSaving(false);
+    }
+  }
+
+  async function saveAccount() {
+    setAccountError(null);
+    setAccountSaved(false);
+    setAccountSaving(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAccountError(data.error || "Something went wrong.");
+        return;
+      }
+      setAccountSaved(true);
+      router.refresh();
+    } catch {
+      setAccountError("Network error. Please try again.");
+    } finally {
+      setAccountSaving(false);
+    }
+  }
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+    router.refresh();
+  }
 
   return (
     <div className="space-y-6">
-      <SettingsSection title="Appearance" description="Choose how LexLearn looks on this device.">
+      <SettingsSection title="Appearance" description="Choose how StudyRex looks on this device.">
         <div className="flex flex-wrap gap-2">
           {themeOptions.map((opt) => {
             const Icon = opt.icon;
@@ -93,16 +151,17 @@ export function SettingsView() {
         </div>
       </SettingsSection>
 
-      <SettingsSection title="Exam target" description="Personalizes study suggestions and exam tips.">
-        <div className="flex flex-wrap gap-2">
-          {examTargets.map((t) => (
+      <SettingsSection title="What you're preparing for" description="Personalizes your dashboard, study suggestions, and exam tips.">
+        <div className="flex flex-wrap items-center gap-2">
+          {LAW_LEVELS.map((t) => (
             <button
               key={t}
               type="button"
-              onClick={() => setExamTarget(t)}
+              disabled={lawLevelSaving}
+              onClick={() => saveLawLevel(t)}
               className={cn(
-                "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
-                examTarget === t
+                "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-60",
+                lawLevel === t
                   ? "border-primary/40 bg-accent text-accent-foreground"
                   : "border-border bg-background text-muted-foreground hover:text-foreground",
               )}
@@ -110,6 +169,7 @@ export function SettingsView() {
               {t}
             </button>
           ))}
+          {lawLevelSaving && <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-hidden="true" />}
         </div>
       </SettingsSection>
 
@@ -133,7 +193,7 @@ export function SettingsView() {
 
       <SettingsSection
         title="Privacy"
-        description="LexLearn stores your study data to power your dashboard and history. This build keeps data in your browser session only — nothing is sent to a persistent backend yet."
+        description="StudyRex stores your study data in MongoDB to power your dashboard, history, and conversations."
       >
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -150,23 +210,42 @@ export function SettingsView() {
         <div className="space-y-4">
           <div className="grid gap-1.5">
             <Label htmlFor="name-input">Name</Label>
-            <Input id="name-input" defaultValue={studentName} />
+            <Input id="name-input" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="email-input">Email</Label>
             <Input id="email-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
+
+          {accountError && (
+            <p className="text-xs font-medium text-destructive" role="alert">
+              {accountError}
+            </p>
+          )}
+          {accountSaved && !accountError && (
+            <p className="text-xs font-medium text-primary">Saved.</p>
+          )}
+
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2"
+            disabled={accountSaving}
+            onClick={saveAccount}
+          >
+            {accountSaving && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+            Save changes
+          </Button>
+
           <div className="flex items-center justify-between border-t border-border pt-4">
             <div>
               <p className="text-sm font-medium text-foreground">Log out</p>
               <p className="text-xs text-muted-foreground">End this session and return to the homepage.</p>
             </div>
-            <Link href="/" className="inline-flex">
-              <Button variant="destructive" className="gap-2">
-                <LogOut className="size-4" />
-                Log out
-              </Button>
-            </Link>
+            <Button variant="destructive" className="gap-2" disabled={loggingOut} onClick={handleLogout}>
+              {loggingOut ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <LogOut className="size-4" />}
+              Log out
+            </Button>
           </div>
         </div>
       </SettingsSection>
