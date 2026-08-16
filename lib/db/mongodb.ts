@@ -1,4 +1,11 @@
+import dns from "dns";
 import mongoose from "mongoose";
+
+// On some Windows setups, Node's bundled resolver (c-ares) fails to reach the
+// system DNS server for the `mongodb+srv://` SRV/TXT lookup even though the
+// OS resolver works fine (ECONNREFUSED on querySrv). Pointing Node explicitly
+// at public resolvers works around it without needing a non-SRV connection string.
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 /**
  * Reusable MongoDB connection (Mongoose). Reads only process.env.MONGODB_URI —
