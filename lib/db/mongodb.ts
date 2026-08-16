@@ -1,12 +1,6 @@
 import dns from "dns";
 import mongoose from "mongoose";
 
-// On some Windows setups, Node's bundled resolver (c-ares) fails to reach the
-// system DNS server for the `mongodb+srv://` SRV/TXT lookup even though the
-// OS resolver works fine (ECONNREFUSED on querySrv). Pointing Node explicitly
-// at public resolvers works around it without needing a non-SRV connection string.
-dns.setServers(["1.1.1.1", "8.8.8.8"]);
-
 /**
  * Reusable MongoDB connection (Mongoose). Reads only process.env.MONGODB_URI —
  * never hardcode a connection string here. Cached on `global` so dev-mode HMR
@@ -24,7 +18,21 @@ declare global {
 const cache = globalThis.__mongooseCache ?? { conn: null, promise: null };
 globalThis.__mongooseCache = cache;
 
+// On some Windows setups, Node's bundled resolver (c-ares) fails to reach the
+// system DNS server for the `mongodb+srv://` SRV/TXT lookup even though the
+// OS resolver works fine (ECONNREFUSED on querySrv). Pointing Node explicitly
+// at public resolvers works around it without needing a non-SRV connection string.
+// Called inside connectToDatabase (not as a top-level side effect) because
+// Turbopack's dev bundler tree-shakes bare top-level calls with no exported
+// effect, silently dropping this fix.
+let dnsServersConfigured = false;
+
 export async function connectToDatabase(): Promise<typeof mongoose> {
+  if (!dnsServersConfigured) {
+    dns.setServers(["1.1.1.1", "8.8.8.8"]);
+    dnsServersConfigured = true;
+  }
+
   if (cache.conn) {
     return cache.conn;
   }

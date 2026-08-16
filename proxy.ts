@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifySessionToken } from "@/lib/auth/jwt";
+import { verifySessionToken, verifyAdminToken } from "@/lib/auth/jwt";
 import { SESSION_COOKIE } from "@/lib/auth/session";
+import { ADMIN_SESSION_COOKIE } from "@/lib/auth/admin-session";
 
 // Optimistic auth gate only — reads the session cookie, never touches the
 // database (see Next.js Proxy docs: DB checks belong in the DAL, not here).
@@ -37,6 +38,22 @@ export default function proxy(request: NextRequest) {
 
   if (isAuthOnlyRoute && session) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
+  const isAdminLoginRoute = pathname === "/admin/login";
+  if (isAdminRoute && !isAdminLoginRoute) {
+    const adminToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
+    const validAdmin = adminToken ? verifyAdminToken(adminToken) : false;
+    if (!validAdmin) {
+      return NextResponse.redirect(new URL("/admin/login", request.url));
+    }
+  }
+  if (isAdminLoginRoute) {
+    const adminToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
+    if (adminToken && verifyAdminToken(adminToken)) {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
   }
 
   return NextResponse.next();

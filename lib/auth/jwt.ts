@@ -31,3 +31,19 @@ export function verifySessionToken(token: string): SessionPayload | null {
     return null;
   }
 }
+
+const ADMIN_SESSION_TTL = "12h";
+
+export function signAdminToken(): string {
+  return jwt.sign({ admin: true }, getSecret(), { expiresIn: ADMIN_SESSION_TTL });
+}
+
+export function verifyAdminToken(token: string): boolean {
+  try {
+    const decoded = jwt.verify(token, getSecret());
+    if (typeof decoded === "string") return false;
+    return (decoded as { admin?: boolean }).admin === true;
+  } catch {
+    return false;
+  }
+}
