@@ -1,3 +1,5 @@
+import type { LawLevel } from "@/lib/auth/constants";
+
 export type LegalStatus = "current" | "historical";
 
 export type SubjectSlug =
@@ -19,16 +21,21 @@ export type SubjectSlug =
   | "intellectual-property";
 
 export interface Subject {
-  slug: SubjectSlug;
+  slug: string;
   name: string;
   shortName: string;
   description: string;
   icon: string;
-  progress: number;
-  topicsCompleted: number;
-  topicsTotal: number;
-  questionsAsked: number;
-  lastStudied: string | null;
+  /** Which preparation tracks (onboarding selections) this subject belongs to. */
+  tracks: LawLevel[];
+  /**
+   * If set, this subject shares its quiz/flashcard/landmark-case content with
+   * another (richer) subject entry — e.g. "Constitutional Law I" links to the
+   * "constitutional-law" entry that actually has curated practice content.
+   */
+  linkedSubjectSlug?: string;
+  /** Ids into lib/legal/acts.ts that are directly relevant to this subject. */
+  relatedActIds?: string[];
 }
 
 export type CaseSubjectTag =

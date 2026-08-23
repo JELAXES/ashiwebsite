@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { subjects } from "@/lib/legal/subjects";
+import { getSubjectsForTrack } from "@/lib/legal/subjects";
 import { LAW_LEVELS } from "@/lib/auth/constants";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,14 @@ export function OnboardingForm() {
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const trackSubjects = lawLevel ? getSubjectsForTrack(lawLevel) : [];
+
+  function selectLawLevel(level: string) {
+    setLawLevel(level);
+    // Previously picked subjects belonged to a different track's curriculum — clear them.
+    setSelectedSubjects([]);
+  }
 
   function toggleSubject(slug: string) {
     setSelectedSubjects((prev) =>
@@ -59,7 +67,7 @@ export function OnboardingForm() {
             <button
               key={t}
               type="button"
-              onClick={() => setLawLevel(t)}
+              onClick={() => selectLawLevel(t)}
               aria-pressed={lawLevel === t}
               className={cn(
                 "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
@@ -74,11 +82,14 @@ export function OnboardingForm() {
         </div>
       </div>
 
+      {lawLevel && (
       <div>
         <h2 className="text-sm font-semibold text-foreground">Subjects you want to focus on</h2>
-        <p className="mt-1 text-xs text-muted-foreground">Optional — pick as many as you like, or skip and choose later in Settings.</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Optional — pick as many as you like from your {lawLevel} curriculum, or skip and choose later in Settings.
+        </p>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {subjects.map((s) => (
+          {trackSubjects.map((s) => (
             <button
               key={s.slug}
               type="button"
@@ -95,6 +106,7 @@ export function OnboardingForm() {
           ))}
         </div>
       </div>
+      )}
 
       {error && (
         <p className="text-xs font-medium text-destructive" role="alert">

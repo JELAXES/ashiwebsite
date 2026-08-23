@@ -4,9 +4,7 @@ import { User } from "@/lib/db/models/user";
 import { LAW_LEVELS } from "@/lib/auth/constants";
 import { getSession } from "@/lib/auth/session";
 import { toPublicUser } from "@/lib/auth/public-user";
-import { subjects } from "@/lib/legal/subjects";
-
-const VALID_SLUGS = new Set(subjects.map((s) => s.slug));
+import { getSubjectsForTrack } from "@/lib/legal/subjects";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -26,9 +24,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Choose what you're preparing for." }, { status: 400 });
   }
 
+  const validSlugsForTrack = new Set(getSubjectsForTrack(lawLevel).map((s) => s.slug));
   const requestedSubjects = Array.isArray(body.subjects) ? body.subjects : [];
   const selectedSubjects = requestedSubjects.filter(
-    (slug): slug is string => typeof slug === "string" && VALID_SLUGS.has(slug as never),
+    (slug): slug is string => typeof slug === "string" && validSlugsForTrack.has(slug),
   );
 
   try {

@@ -16,7 +16,7 @@ import { quizQuestions } from "@/lib/legal/quiz";
 import { subjects } from "@/lib/legal/subjects";
 import { cn } from "@/lib/utils";
 
-const quizSubjectSlugs = Array.from(new Set(quizQuestions.map((q) => q.subject)));
+const quizSubjectSlugs: string[] = Array.from(new Set(quizQuestions.map((q) => q.subject)));
 const availableSubjects = subjects.filter((s) => quizSubjectSlugs.includes(s.slug));
 
 interface QuizEngineProps {

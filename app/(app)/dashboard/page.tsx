@@ -8,10 +8,11 @@ import { SubjectCard } from "@/components/legal/subject-card";
 import { CaseCard } from "@/components/legal/case-card";
 import { LegalDisclaimer } from "@/components/legal/legal-disclaimer";
 import { RecentConversations } from "@/components/dashboard/recent-conversations";
-import { subjects } from "@/lib/legal/subjects";
+import { subjects, getSubjectsForTrack } from "@/lib/legal/subjects";
 import { landmarkCases } from "@/lib/legal/cases";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getDashboardData } from "@/lib/chat/conversations";
+import { LAW_LEVEL_CATEGORY, type LawLevel } from "@/lib/auth/constants";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -29,7 +30,8 @@ function prepLabel(lawLevel: string | null | undefined) {
   if (!lawLevel) return null;
   if (lawLevel === "CLAT") return "CLAT Preparation";
   if (lawLevel === "Judiciary") return "Judiciary Preparation";
-  return lawLevel;
+  const category = LAW_LEVEL_CATEGORY[lawLevel as LawLevel];
+  return category ? `${lawLevel} — ${category}` : lawLevel;
 }
 
 export default async function DashboardPage() {
@@ -48,8 +50,12 @@ export default async function DashboardPage() {
   const studiedSlugs = Object.entries(stats.subjectActivity)
     .sort(([, a], [, b]) => new Date(b.lastStudied).getTime() - new Date(a.lastStudied).getTime())
     .map(([slug]) => slug);
-  const bySlug = (slug: string) => subjects.find((s) => s.slug === slug);
-  const onboardingSubjects = subjects.filter((s) => (user.subjects ?? []).includes(s.slug));
+  // Personalize by the student's actual onboarding track — never the full global catalog.
+  const trackSubjects = getSubjectsForTrack(user.lawLevel);
+  const catalogForUser = trackSubjects.length > 0 ? trackSubjects : subjects;
+
+  const bySlug = (slug: string) => catalogForUser.find((s) => s.slug === slug) ?? subjects.find((s) => s.slug === slug);
+  const onboardingSubjects = catalogForUser.filter((s) => (user.subjects ?? []).includes(s.slug));
 
   const continueStudying = (
     studiedSlugs.length > 0
@@ -57,7 +63,7 @@ export default async function DashboardPage() {
       : onboardingSubjects
   ).slice(0, 3);
 
-  const recommendedTopics = subjects.filter((s) => !studiedSlugs.includes(s.slug)).slice(0, 3);
+  const recommendedTopics = catalogForUser.filter((s) => !studiedSlugs.includes(s.slug)).slice(0, 3);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

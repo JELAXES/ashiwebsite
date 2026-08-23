@@ -14,7 +14,7 @@ import { flashcards } from "@/lib/legal/flashcards";
 import { subjects } from "@/lib/legal/subjects";
 import { Layers } from "lucide-react";
 
-const flashcardSubjectSlugs = Array.from(new Set(flashcards.map((f) => f.subject)));
+const flashcardSubjectSlugs: string[] = Array.from(new Set(flashcards.map((f) => f.subject)));
 const availableSubjects = subjects.filter((s) => flashcardSubjectSlugs.includes(s.slug));
 
 function shuffle<T>(arr: T[]): T[] {

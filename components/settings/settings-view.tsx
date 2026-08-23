@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { LAW_LEVELS } from "@/lib/auth/constants";
+import { getSubjectsForTrack } from "@/lib/legal/subjects";
 import { cn } from "@/lib/utils";
 
 const themeOptions = [
@@ -23,6 +24,7 @@ interface SettingsViewProps {
     name: string;
     email: string;
     lawLevel: string | null;
+    subjects: string[];
   };
 }
 
@@ -67,6 +69,9 @@ export function SettingsView({ initialUser }: SettingsViewProps) {
   const mounted = useMounted();
   const [lawLevel, setLawLevel] = useState(initialUser.lawLevel ?? "");
   const [lawLevelSaving, setLawLevelSaving] = useState(false);
+  const [focusSubjects, setFocusSubjects] = useState<string[]>(initialUser.subjects);
+  const [focusSubjectsSaving, setFocusSubjectsSaving] = useState(false);
+  const trackSubjects = lawLevel ? getSubjectsForTrack(lawLevel) : [];
   const [notifications, setNotifications] = useState<Record<string, boolean>>({
     revision: true,
     digest: true,
@@ -82,7 +87,10 @@ export function SettingsView({ initialUser }: SettingsViewProps) {
 
   async function saveLawLevel(level: string) {
     const previous = lawLevel;
+    const previousSubjects = focusSubjects;
     setLawLevel(level);
+    // A new track has a different curriculum — the old focus-subject picks no longer apply.
+    setFocusSubjects([]);
     setLawLevelSaving(true);
     try {
       const res = await fetch("/api/profile", {
@@ -94,9 +102,32 @@ export function SettingsView({ initialUser }: SettingsViewProps) {
       router.refresh();
     } catch {
       setLawLevel(previous);
+      setFocusSubjects(previousSubjects);
       toast.error("We couldn't save your changes. Please try again.");
     } finally {
       setLawLevelSaving(false);
+    }
+  }
+
+  function toggleFocusSubject(slug: string) {
+    setFocusSubjects((prev) => (prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]));
+  }
+
+  async function saveFocusSubjects() {
+    setFocusSubjectsSaving(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subjects: focusSubjects }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Focus subjects updated.");
+      router.refresh();
+    } catch {
+      toast.error("We couldn't save your changes. Please try again.");
+    } finally {
+      setFocusSubjectsSaving(false);
     }
   }
 
@@ -179,6 +210,42 @@ export function SettingsView({ initialUser }: SettingsViewProps) {
           {lawLevelSaving && <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-hidden="true" />}
         </div>
       </SettingsSection>
+
+      {lawLevel && trackSubjects.length > 0 && (
+        <SettingsSection
+          title="Focus subjects"
+          description={`Optional — pick subjects from your ${lawLevel} curriculum to highlight on your dashboard.`}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            {trackSubjects.map((s) => (
+              <button
+                key={s.slug}
+                type="button"
+                disabled={focusSubjectsSaving}
+                onClick={() => toggleFocusSubject(s.slug)}
+                className={cn(
+                  "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-60",
+                  focusSubjects.includes(s.slug)
+                    ? "border-primary/40 bg-accent text-accent-foreground"
+                    : "border-border bg-background text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-4 gap-2"
+            disabled={focusSubjectsSaving}
+            onClick={saveFocusSubjects}
+          >
+            {focusSubjectsSaving && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+            Save focus subjects
+          </Button>
+        </SettingsSection>
+      )}
 
       <SettingsSection title="Notifications">
         <div className="space-y-4">

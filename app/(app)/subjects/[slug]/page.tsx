@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Sparkles, GraduationCap, Landmark } from "lucide-react";
+import { Sparkles, GraduationCap, Landmark, BookText, MessageCircleQuestion } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { CaseCard } from "@/components/legal/case-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { getSubjectBySlug } from "@/lib/legal/subjects";
+import { getSubjectBySlug, getPracticeSlug } from "@/lib/legal/subjects";
 import { landmarkCases } from "@/lib/legal/cases";
 import { getQuizBySubject } from "@/lib/legal/quiz";
 import { getFlashcardsBySubject } from "@/lib/legal/flashcards";
+import { getStarterQuestions } from "@/lib/legal/starter-questions";
+import { legalActs } from "@/lib/legal/acts";
 import { renderSubjectIcon } from "@/lib/legal/icon-map";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getUserActivityStats } from "@/lib/chat/conversations";
@@ -32,9 +34,19 @@ export default async function SubjectDetailPage(props: PageProps<"/subjects/[slu
   const stats = await getUserActivityStats(user._id.toString());
   const activity = stats.subjectActivity[subject.slug];
 
-  const relatedCases = landmarkCases.filter((c) => c.subject === subject.name).slice(0, 3);
-  const quizCount = getQuizBySubject(subject.slug).length;
-  const flashcardCount = getFlashcardsBySubject(subject.slug).length;
+  // A curriculum entry (e.g. "Constitutional Law I") shares its practice content
+  // with the richer subject it's linked to, rather than duplicating or fabricating new content.
+  const practiceSlug = getPracticeSlug(subject);
+  const practiceSubject = getSubjectBySlug(practiceSlug) ?? subject;
+  const relatedCases = landmarkCases.filter((c) => c.subject === practiceSubject.name).slice(0, 3);
+  const quizCount = getQuizBySubject(practiceSlug).length;
+  const flashcardCount = getFlashcardsBySubject(practiceSlug).length;
+  const starterQuestions = getStarterQuestions(subject);
+  const relatedActIds = subject.relatedActIds ?? practiceSubject.relatedActIds ?? [];
+  const relatedActs = relatedActIds
+    .map((id) => legalActs.find((a) => a.id === id))
+    .filter((a): a is (typeof legalActs)[number] => !!a);
+  const isInUserCurriculum = !!user.lawLevel && (subject.tracks as string[]).includes(user.lawLevel);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -44,6 +56,9 @@ export default async function SubjectDetailPage(props: PageProps<"/subjects/[slu
             {renderSubjectIcon(subject.icon, "size-6")}
           </div>
           <div>
+            {isInUserCurriculum && (
+              <p className="mb-1 text-xs font-medium text-primary">Part of your {user.lawLevel} curriculum</p>
+            )}
             <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
               {subject.name}
             </h1>
@@ -79,10 +94,27 @@ export default async function SubjectDetailPage(props: PageProps<"/subjects/[slu
       </div>
 
       <section className="mt-10">
+        <h2 className="font-heading text-lg font-semibold text-foreground">Ask the AI Tutor</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Starter questions to kick off a conversation about this subject.</p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {starterQuestions.map((q) => (
+            <Link
+              key={q}
+              href={`/tutor?subject=${subject.slug}&prompt=${encodeURIComponent(q)}`}
+              className="flex items-start gap-2.5 rounded-lg border border-border bg-card px-4 py-3 text-left text-sm text-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <MessageCircleQuestion className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+              {q}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-10">
         <h2 className="font-heading text-lg font-semibold text-foreground">Practice this subject</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Link
-            href={`/study-tools/quiz?subject=${subject.slug}`}
+            href={`/study-tools/quiz?subject=${practiceSlug}`}
             className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-secondary">
@@ -94,7 +126,7 @@ export default async function SubjectDetailPage(props: PageProps<"/subjects/[slu
             </div>
           </Link>
           <Link
-            href={`/study-tools/flashcards?subject=${subject.slug}`}
+            href={`/study-tools/flashcards?subject=${practiceSlug}`}
             className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-secondary">
@@ -130,6 +162,34 @@ export default async function SubjectDetailPage(props: PageProps<"/subjects/[slu
           </div>
         )}
       </section>
+
+      {relatedActs.length > 0 && (
+        <section className="mt-10">
+          <div className="flex items-center justify-between">
+            <h2 className="font-heading text-lg font-semibold text-foreground">Relevant Acts &amp; sections</h2>
+            <Link href="/acts" className="text-sm font-medium text-primary hover:underline">
+              Acts &amp; Sections
+            </Link>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {relatedActs.map((act) => (
+              <Link
+                key={act.id}
+                href={`/acts/${act.id}`}
+                className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-secondary">
+                  <BookText className="size-4.5" aria-hidden="true" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">{act.shortName}</p>
+                  <p className="text-xs text-muted-foreground">{act.name}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

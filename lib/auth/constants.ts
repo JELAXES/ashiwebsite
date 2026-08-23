@@ -9,3 +9,14 @@ export const LAW_LEVELS = [
   "Judiciary",
 ] as const;
 export type LawLevel = (typeof LAW_LEVELS)[number];
+
+/** Curriculum category shown alongside a law-school year (e.g. "1st Year Law — Foundations"). Null for non-year tracks. */
+export const LAW_LEVEL_CATEGORY: Record<LawLevel, string | null> = {
+  "1st Year Law": "Foundations",
+  "2nd Year Law": "Core Law",
+  "3rd Year Law": "Procedure & Practice",
+  "4th Year Law": "Specialisations",
+  "5th Year Law": "Advanced & Clinical",
+  CLAT: null,
+  Judiciary: null,
+};

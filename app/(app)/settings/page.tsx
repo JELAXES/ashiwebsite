@@ -29,6 +29,7 @@ export default async function SettingsPage() {
             name: user.name,
             email: user.email,
             lawLevel: user.lawLevel ?? null,
+            subjects: user.subjects ?? [],
           }}
         />
       </div>

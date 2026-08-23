@@ -76,6 +76,7 @@ export function TutorView() {
 function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParams }) {
   const router = useRouter();
   const initialConversationId = searchParams.get("conversation") ?? undefined;
+  const initialPrompt = searchParams.get("prompt") ?? undefined;
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [input, setInput] = useState("");
   const [subject, setSubject] = useState(() => initialSubjectFromParams(searchParams));
@@ -130,6 +131,15 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
       cancelled = true;
     };
   }, [initialConversationId, router]);
+
+  // Auto-send a starter question deep-linked from a subject page (e.g. "?prompt=..."),
+  // once per mount — this component remounts on every distinct query string (see the
+  // `key={searchParams.toString()}` wrapper above), so this never double-fires for one link.
+  useEffect(() => {
+    if (!initialPrompt || initialConversationId) return;
+    sendQuestion(initialPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isBusy = messages.some((m) => m.pending);
 
