@@ -10,7 +10,7 @@ import {
   BookText,
   GraduationCap,
   Bookmark,
-  History,
+  NotebookPen,
   Settings,
   User,
   type LucideIcon,
@@ -31,7 +31,7 @@ const primaryNav: NavItem[] = [
   { href: "/acts", label: "Acts & Sections", icon: BookText },
   { href: "/study-tools", label: "Study Tools", icon: GraduationCap },
   { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
-  { href: "/history", label: "History", icon: History },
+  { href: "/notebook", label: "Notebook", icon: NotebookPen },
 ];
 
 const secondaryNav: NavItem[] = [

@@ -12,9 +12,9 @@ import { PricingSection } from "@/components/marketing/pricing-section";
 import { FinalCta } from "@/components/marketing/final-cta";
 
 export const metadata: Metadata = {
-  title: "StudyRex — Master Indian Law with AI",
+  title: "StudyRex — Master the law with AI",
   description:
-    "An AI-powered study companion for Indian law students, CLAT aspirants, and judiciary candidates.",
+    "An AI-powered study companion for law students, CLAT aspirants, and judiciary candidates.",
 };
 
 export default function Home() {

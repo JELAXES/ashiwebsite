@@ -65,7 +65,7 @@ export function ChatDemo() {
 
           <div className="space-y-5 p-5 sm:p-7">
             {demoMessages.map((m) => (
-              <ChatMessage key={m.id} message={m} />
+              <ChatMessage key={m.id} message={m} hideActions />
             ))}
 
             <div className="pl-11">

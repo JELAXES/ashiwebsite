@@ -12,30 +12,47 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { quizQuestions } from "@/lib/legal/quiz";
-import { subjects } from "@/lib/legal/subjects";
+import type { QuizQuestion } from "@/lib/legal/types";
 import { cn } from "@/lib/utils";
 
-const quizSubjectSlugs: string[] = Array.from(new Set(quizQuestions.map((q) => q.subject)));
-const availableSubjects = subjects.filter((s) => quizSubjectSlugs.includes(s.slug));
+/** One subject's assembled question bank — built server-side in lib/content/decks.ts. */
+export interface QuizDeckData {
+  slug: string;
+  name: string;
+  questions: QuizQuestion[];
+}
 
 interface QuizEngineProps {
   title: string;
   description: string;
+  /** Every subject deck available to this user (year-scoped on the server). */
+  decks: QuizDeckData[];
+  /** Subject slug to open on, from a `?subject=` deep link. */
+  initialSubject?: string;
 }
 
-export function QuizEngine({ title, description }: QuizEngineProps) {
-  const [subject, setSubject] = useState("all");
+export function QuizEngine({ title, description, decks, initialSubject }: QuizEngineProps) {
+  const withQuestions = useMemo(() => decks.filter((d) => d.questions.length > 0), [decks]);
+  const bySlug = useMemo(() => new Map(decks.map((d) => [d.slug, d])), [decks]);
+
+  const [subject, setSubject] = useState(() =>
+    initialSubject && bySlug.has(initialSubject) ? initialSubject : "all",
+  );
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [finished, setFinished] = useState(false);
 
-  const pool = useMemo(
-    () => (subject === "all" ? quizQuestions : quizQuestions.filter((q) => q.subject === subject)),
-    [subject],
+  const totalCount = useMemo(
+    () => withQuestions.reduce((n, d) => n + d.questions.length, 0),
+    [withQuestions],
   );
+
+  const pool = useMemo(() => {
+    if (subject !== "all") return bySlug.get(subject)?.questions ?? [];
+    return withQuestions.flatMap((d) => d.questions);
+  }, [subject, withQuestions, bySlug]);
 
   const question = pool[index];
 
@@ -82,14 +99,14 @@ export function QuizEngine({ title, description }: QuizEngineProps) {
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{description}</p>
         </div>
         <Select value={subject} onValueChange={(v) => selectSubject(v ?? "all")}>
-          <SelectTrigger className="h-9 w-full sm:w-56">
+          <SelectTrigger className="h-9 w-full sm:w-64">
             <SelectValue placeholder="All subjects" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All subjects ({quizQuestions.length})</SelectItem>
-            {availableSubjects.map((s) => (
-              <SelectItem key={s.slug} value={s.slug}>
-                {s.name} ({quizQuestions.filter((q) => q.subject === s.slug).length})
+            <SelectItem value="all">All subjects ({totalCount})</SelectItem>
+            {withQuestions.map((d) => (
+              <SelectItem key={d.slug} value={d.slug}>
+                {d.name} ({d.questions.length})
               </SelectItem>
             ))}
           </SelectContent>
@@ -101,7 +118,7 @@ export function QuizEngine({ title, description }: QuizEngineProps) {
           <EmptyState
             icon={ScrollText}
             title="No questions yet for this subject"
-            description="This subject's question bank is still being built — try another subject in the meantime."
+            description="This subject's question bank is still being built — pick another subject in the meantime, or ask the AI Tutor to quiz you."
           />
         ) : finished ? (
           <div className="rounded-xl border border-border bg-card p-8 text-center">

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { History, Pencil, Trash2, MessageSquare } from "lucide-react";
+import { NotebookText, Pencil, Trash2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,11 +32,11 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-interface HistoryViewProps {
+interface NotebookViewProps {
   initialConversations: ConversationSummary[];
 }
 
-export function HistoryView({ initialConversations }: HistoryViewProps) {
+export function NotebookView({ initialConversations }: NotebookViewProps) {
   const [items, setItems] = useState<ConversationSummary[]>(initialConversations);
   const [renameTarget, setRenameTarget] = useState<ConversationSummary | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -87,9 +87,9 @@ export function HistoryView({ initialConversations }: HistoryViewProps) {
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={History}
-        title="No conversation history yet"
-        description="Conversations with the AI Tutor will show up here."
+        icon={NotebookText}
+        title="Your notebook is empty"
+        description="Ask the AI Tutor a question and it lands here automatically — question, answer, and citations, saved for later."
         action={
           <Link href="/tutor" className="text-sm font-medium text-primary hover:underline">
             Ask the AI Tutor

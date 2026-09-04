@@ -82,7 +82,7 @@ export default async function DashboardPage() {
             <p className="mt-1 text-sm font-medium text-primary">{prep}</p>
           )}
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Pick up where you left off, or ask the AI tutor anything about Indian law.
+            Pick up where you left off, or ask the AI tutor anything about law.
           </p>
         </div>
         <Link href="/tutor" className={cn(buttonVariants({ size: "lg" }), "shrink-0 gap-2")}>
@@ -118,8 +118,8 @@ export default async function DashboardPage() {
       <section className="mt-10">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-lg font-semibold text-foreground">Recent conversations</h2>
-          <Link href="/history" className="text-sm font-medium text-primary hover:underline">
-            View history
+          <Link href="/notebook" className="text-sm font-medium text-primary hover:underline">
+            Open notebook
           </Link>
         </div>
         <RecentConversations conversations={summaries} />

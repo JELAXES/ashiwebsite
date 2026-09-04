@@ -26,10 +26,16 @@ export function SubjectCard({ subject, className, activity }: SubjectCardProps) 
         className,
       )}
     >
-      <div className="mb-4 flex items-start justify-between">
+      <div className="mb-4 flex items-start justify-between gap-2">
         <div className="flex size-10 items-center justify-center rounded-md bg-secondary text-foreground transition-colors group-hover:bg-primary/15 group-hover:text-primary">
           {renderSubjectIcon(subject.icon, "size-5")}
         </div>
+        {subject.semester != null && (
+          <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            Sem {subject.semester}
+            {subject.category && subject.category !== "Law" ? ` · ${subject.category}` : ""}
+          </span>
+        )}
       </div>
       <h3 className="text-sm font-semibold text-foreground">{subject.name}</h3>
       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{subject.description}</p>

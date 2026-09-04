@@ -43,6 +43,10 @@ import {
   UserRound,
   Banknote,
   Scroll,
+  Briefcase,
+  Megaphone,
+  Target,
+  LineChart,
   type LucideIcon,
 } from "lucide-react";
 
@@ -91,6 +95,10 @@ export const subjectIconMap: Record<string, LucideIcon> = {
   UserRound,
   Banknote,
   Scroll,
+  Briefcase,
+  Megaphone,
+  Target,
+  LineChart,
 };
 
 export function getSubjectIcon(name: string): LucideIcon {

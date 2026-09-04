@@ -46,15 +46,19 @@ export function AdminDashboard() {
   const [pwSuccess, setPwSuccess] = useState(false);
   const [pwLoading, setPwLoading] = useState(false);
 
-  async function loadData() {
-    setLoading(true);
-    const [usersRes, conversationsRes] = await Promise.all([
-      fetch("/api/admin/users"),
-      fetch("/api/admin/conversations"),
-    ]);
-    if (usersRes.ok) setUsers((await usersRes.json()).users);
-    if (conversationsRes.ok) setConversations((await conversationsRes.json()).conversations);
-    setLoading(false);
+  // Promise-chain form (not async/await): setState only ever runs inside a
+  // `.then`/`.finally` callback, so the mount effect below stays clear of the
+  // React Compiler's set-state-in-effect rule.
+  function loadData() {
+    return Promise.all([
+      fetch("/api/admin/users").then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/admin/conversations").then((r) => (r.ok ? r.json() : null)),
+    ])
+      .then(([usersData, conversationsData]) => {
+        if (usersData) setUsers(usersData.users);
+        if (conversationsData) setConversations(conversationsData.conversations);
+      })
+      .finally(() => setLoading(false));
   }
 
   useEffect(() => {
@@ -66,6 +70,7 @@ export function AdminDashboard() {
     setDeletingId(id);
     const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
     if (res.ok) {
+      setLoading(true);
       await loadData();
     }
     setDeletingId(null);

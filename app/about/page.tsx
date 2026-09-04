@@ -17,8 +17,8 @@ export default function AboutPage() {
           <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground">About StudyRex</h1>
           <div className="mt-6 space-y-5 text-sm leading-relaxed text-muted-foreground">
             <p>
-              StudyRex is an AI-powered study companion for Indian law students, CLAT aspirants, and
-              judiciary exam candidates. It pairs a Gemini-powered AI Tutor with a structured library of
+              StudyRex is an AI-powered study companion for law students, CLAT aspirants, and
+              judiciary exam candidates. It pairs an AI Tutor with a structured library of
               subjects, landmark cases, and Acts &amp; Sections, so you can ask a question in plain language
               and get an exam-relevant, cited answer back.
             </p>

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { getGeminiClient, GEMINI_MODEL } from "@/lib/gemini/client";
-import { buildSystemPrompt, type StudentContext } from "@/lib/gemini/system-prompt";
-import { answerSchema } from "@/lib/gemini/schema";
-import { checkRateLimit } from "@/lib/gemini/rate-limit";
+import Anthropic from "@anthropic-ai/sdk";
+import { getAnthropicClient, ANTHROPIC_MODEL } from "@/lib/ai/client";
+import { buildSystemPrompt, type StudentContext } from "@/lib/ai/system-prompt";
+import { answerTool, ANSWER_TOOL_NAME } from "@/lib/ai/schema";
+import { checkRateLimit } from "@/lib/ai/rate-limit";
 import type { ChatApiRequest, ChatApiResponse, ChatRole } from "@/lib/chat/types";
 import { getCurrentUser } from "@/lib/auth/session";
 import { connectToDatabase } from "@/lib/db/mongodb";
@@ -13,8 +14,8 @@ const AI_UNAVAILABLE_MESSAGE = "StudyRex AI is temporarily unavailable. Please t
 
 /**
  * Persists a chat turn for the signed-in user. Best-effort: a persistence
- * failure (e.g. MongoDB unreachable) must never break the Gemini answer
- * that's already been generated, so failures are logged and swallowed.
+ * failure (e.g. MongoDB unreachable) must never break the answer that's
+ * already been generated, so failures are logged and swallowed.
  */
 async function persistTurn(
   userId: string,
@@ -118,46 +119,70 @@ export async function POST(request: Request) {
       }
     : undefined;
 
-  let raw: Partial<ChatApiResponse>;
-  try {
-    const client = getGeminiClient();
+  const messages: Anthropic.MessageParam[] = [
+    ...chatHistory.map((m) => ({
+      role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
+      content: m.content,
+    })),
+    { role: "user", content: question },
+  ];
+  const systemPrompt = buildSystemPrompt(subject, studentContext);
 
-    const contents = [
-      ...chatHistory.map((m) => ({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      })),
-      { role: "user", parts: [{ text: question }] },
-    ];
-
-    const response = await client.models.generateContent({
-      model: GEMINI_MODEL,
-      contents,
-      config: {
-        systemInstruction: buildSystemPrompt(subject, studentContext),
-        responseMimeType: "application/json",
-        responseSchema: answerSchema,
-        maxOutputTokens: 3072,
-      },
+  /**
+   * One model call + structured-answer extraction. Forcing a single tool call is
+   * how the answer stays structured — on Sonnet 5 a forced `tool_choice` only
+   * reliably yields a `tool_use` block with thinking off; with adaptive thinking
+   * on, the model tends to answer in plain prose and skip the tool entirely.
+   */
+  async function callModelOnce(): Promise<Partial<ChatApiResponse>> {
+    const client = getAnthropicClient();
+    const response = await client.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 4096,
+      thinking: { type: "disabled" },
+      system: systemPrompt,
+      tools: [answerTool],
+      tool_choice: { type: "tool", name: ANSWER_TOOL_NAME },
+      messages,
     });
 
-    const text = response.text;
-    if (!text) {
-      throw new Error("Model returned an empty response.");
+    const toolUse = response.content.find(
+      (block): block is Anthropic.ToolUseBlock =>
+        block.type === "tool_use" && block.name === ANSWER_TOOL_NAME,
+    );
+    if (!toolUse) {
+      console.error(
+        "[/api/chat] model did not call the answer tool",
+        JSON.stringify(response.content).slice(0, 500),
+      );
+      throw new Error("Model returned an unstructured response.");
     }
 
-    try {
-      raw = JSON.parse(text) as Partial<ChatApiResponse>;
-    } catch (parseError) {
-      console.error("[/api/chat] malformed JSON from model", parseError, text.slice(0, 500));
-      throw new Error("Model returned a malformed response.");
-    }
-
-    if (!raw.answer || typeof raw.answer !== "string") {
+    const parsed = toolUse.input as Partial<ChatApiResponse>;
+    if (!parsed.answer || typeof parsed.answer !== "string") {
       throw new Error("Model returned an empty answer.");
     }
+    return parsed;
+  }
+
+  let raw: Partial<ChatApiResponse>;
+  try {
+    try {
+      raw = await callModelOnce();
+    } catch (firstError) {
+      // A forced tool call very occasionally comes back unstructured. One
+      // immediate retry clears it far more often than not, and is cheap
+      // relative to surfacing an error to the student.
+      if (firstError instanceof Anthropic.APIError) throw firstError;
+      console.warn("[/api/chat] retrying after unstructured response");
+      raw = await callModelOnce();
+    }
   } catch (error) {
-    console.error("[/api/chat]", error);
+    if (error instanceof Anthropic.APIError) {
+      console.error("[/api/chat] Anthropic API error", error.status, error.message);
+    } else {
+      console.error("[/api/chat]", error);
+    }
     return NextResponse.json({ error: AI_UNAVAILABLE_MESSAGE }, { status: 502 });
   }
 

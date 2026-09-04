@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSubjectsForTrack } from "@/lib/legal/subjects";
-import { LAW_LEVELS } from "@/lib/auth/constants";
+import { LAW_LEVEL_GROUPS } from "@/lib/auth/constants";
 import { cn } from "@/lib/utils";
 
 export function OnboardingForm() {
@@ -62,22 +62,31 @@ export function OnboardingForm() {
       <div>
         <h2 className="text-sm font-semibold text-foreground">What are you preparing for?</h2>
         <p className="mt-1 text-xs text-muted-foreground">Personalizes your dashboard, exam tips, and study suggestions.</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {LAW_LEVELS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => selectLawLevel(t)}
-              aria-pressed={lawLevel === t}
-              className={cn(
-                "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
-                lawLevel === t
-                  ? "border-primary/40 bg-accent text-accent-foreground"
-                  : "border-border bg-background text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t}
-            </button>
+        <div className="mt-3 space-y-3">
+          {LAW_LEVEL_GROUPS.map((group) => (
+            <div key={group.label}>
+              <p className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                {group.label}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {group.levels.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => selectLawLevel(t)}
+                    aria-pressed={lawLevel === t}
+                    className={cn(
+                      "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
+                      lawLevel === t
+                        ? "border-primary/40 bg-accent text-accent-foreground"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>

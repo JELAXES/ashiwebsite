@@ -10,12 +10,14 @@ import {
 } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FlashcardDeck, type FlashcardItem } from "./flashcard-deck";
-import { flashcards } from "@/lib/legal/flashcards";
-import { subjects } from "@/lib/legal/subjects";
 import { Layers } from "lucide-react";
 
-const flashcardSubjectSlugs: string[] = Array.from(new Set(flashcards.map((f) => f.subject)));
-const availableSubjects = subjects.filter((s) => flashcardSubjectSlugs.includes(s.slug));
+/** One subject's assembled deck — built server-side in lib/content/decks.ts. */
+export interface FlashcardDeckData {
+  slug: string;
+  name: string;
+  cards: FlashcardItem[];
+}
 
 function shuffle<T>(arr: T[]): T[] {
   const copy = [...arr];
@@ -26,20 +28,34 @@ function shuffle<T>(arr: T[]): T[] {
   return copy;
 }
 
-export function FlashcardsView() {
-  const [subject, setSubject] = useState("all");
+interface FlashcardsViewProps {
+  /** Every subject deck available to this user (year-scoped on the server). */
+  decks: FlashcardDeckData[];
+  /** Subject slug to open on, from a `?subject=` deep link. */
+  initialSubject?: string;
+}
+
+export function FlashcardsView({ decks, initialSubject }: FlashcardsViewProps) {
+  const withCards = useMemo(() => decks.filter((d) => d.cards.length > 0), [decks]);
+  const bySlug = useMemo(() => new Map(decks.map((d) => [d.slug, d])), [decks]);
+
+  const [subject, setSubject] = useState(() =>
+    initialSubject && bySlug.has(initialSubject) ? initialSubject : "all",
+  );
   const [seed, setSeed] = useState(0);
 
+  const totalCount = useMemo(
+    () => withCards.reduce((n, d) => n + d.cards.length, 0),
+    [withCards],
+  );
+
   const pool = useMemo(() => {
-    const base = subject === "all" ? flashcards : flashcards.filter((f) => f.subject === subject);
-    const items: FlashcardItem[] = base.map((f) => ({
-      id: f.id,
-      front: f.front,
-      back: f.back,
-      backMeta: f.provision,
-    }));
-    return seed === 0 ? items : shuffle(items);
-  }, [subject, seed]);
+    const base: FlashcardItem[] =
+      subject === "all"
+        ? withCards.flatMap((d) => d.cards)
+        : (bySlug.get(subject)?.cards ?? []);
+    return seed === 0 ? base : shuffle(base);
+  }, [subject, seed, withCards, bySlug]);
 
   return (
     <div>
@@ -59,14 +75,14 @@ export function FlashcardsView() {
             setSeed(0);
           }}
         >
-          <SelectTrigger className="h-9 w-full sm:w-56">
+          <SelectTrigger className="h-9 w-full sm:w-64">
             <SelectValue placeholder="All subjects" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All subjects ({flashcards.length})</SelectItem>
-            {availableSubjects.map((s) => (
-              <SelectItem key={s.slug} value={s.slug}>
-                {s.name} ({flashcards.filter((f) => f.subject === s.slug).length})
+            <SelectItem value="all">All subjects ({totalCount})</SelectItem>
+            {withCards.map((d) => (
+              <SelectItem key={d.slug} value={d.slug}>
+                {d.name} ({d.cards.length})
               </SelectItem>
             ))}
           </SelectContent>
@@ -78,10 +94,10 @@ export function FlashcardsView() {
           <EmptyState
             icon={Layers}
             title="No flashcards yet for this subject"
-            description="This subject's flashcard set is still being built — try another subject in the meantime."
+            description="This subject's flashcard set is still being built — pick another subject in the meantime, or ask the AI Tutor to quiz you."
           />
         ) : (
-          <FlashcardDeck cards={pool} onShuffle={() => setSeed((s) => s + 1)} />
+          <FlashcardDeck key={`${subject}:${seed}`} cards={pool} onShuffle={() => setSeed((s) => s + 1)} />
         )}
       </div>
     </div>

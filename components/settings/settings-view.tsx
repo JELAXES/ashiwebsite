@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { LAW_LEVELS } from "@/lib/auth/constants";
+import { LAW_LEVEL_GROUPS } from "@/lib/auth/constants";
 import { getSubjectsForTrack } from "@/lib/legal/subjects";
 import { cn } from "@/lib/utils";
 
@@ -189,23 +189,35 @@ export function SettingsView({ initialUser }: SettingsViewProps) {
         </div>
       </SettingsSection>
 
-      <SettingsSection title="What you're preparing for" description="Personalizes your dashboard, study suggestions, and exam tips.">
-        <div className="flex flex-wrap items-center gap-2">
-          {LAW_LEVELS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              disabled={lawLevelSaving}
-              onClick={() => saveLawLevel(t)}
-              className={cn(
-                "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-60",
-                lawLevel === t
-                  ? "border-primary/40 bg-accent text-accent-foreground"
-                  : "border-border bg-background text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t}
-            </button>
+      <SettingsSection
+        title="What you're preparing for"
+        description="Personalizes your dashboard, study suggestions, and exam tips. Switching your year re-scopes every subject list, flashcard deck, and quiz — your notebook and history are untouched."
+      >
+        <div className="space-y-3">
+          {LAW_LEVEL_GROUPS.map((group) => (
+            <div key={group.label}>
+              <p className="mb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                {group.label}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {group.levels.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    disabled={lawLevelSaving}
+                    onClick={() => saveLawLevel(t)}
+                    className={cn(
+                      "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-60",
+                      lawLevel === t
+                        ? "border-primary/40 bg-accent text-accent-foreground"
+                        : "border-border bg-background text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
           {lawLevelSaving && <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-hidden="true" />}
         </div>
@@ -267,7 +279,7 @@ export function SettingsView({ initialUser }: SettingsViewProps) {
 
       <SettingsSection
         title="Privacy"
-        description="StudyRex stores your study data in MongoDB to power your dashboard, history, and conversations."
+        description="StudyRex stores your study data in MongoDB to power your dashboard, notebook, and conversations."
       >
         <div className="flex items-center justify-between gap-4">
           <div>

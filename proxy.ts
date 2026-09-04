@@ -12,7 +12,7 @@ const APP_ROUTE_PREFIXES = [
   "/acts",
   "/bookmarks",
   "/cases",
-  "/history",
+  "/notebook",
   "/profile",
   "/settings",
   "/study-tools",

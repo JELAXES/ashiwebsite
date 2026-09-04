@@ -50,9 +50,9 @@ export default function PrivacyPage() {
           <Section title="Third-party processing">
             <p>
               When you ask the AI Tutor a question, the question text (and recent conversation history, to keep
-              context) is sent to Google&apos;s Gemini API to generate an answer. Google processes that text
-              under its own API terms. We don&apos;t send your name, email, or password to Gemini — only the
-              content of your question and, if you&apos;ve set your study level or subjects, that context, so
+              context) is sent to Anthropic&apos;s Claude API to generate an answer. Anthropic processes that
+              text under its own API terms. We don&apos;t send your name, email, or password to Anthropic — only
+              the content of your question and, if you&apos;ve set your study level or subjects, that context, so
               the answer can be tailored to you.
             </p>
           </Section>
@@ -62,7 +62,7 @@ export default function PrivacyPage() {
           </Section>
 
           <Section title="Your control">
-            <p>You can delete individual conversations at any time from your history. You can change your name, email, and preparation level from Settings.</p>
+            <p>You can delete individual conversations at any time from your Notebook. You can change your name, email, and preparation level from Settings.</p>
           </Section>
         </div>
       </main>

@@ -1,14 +1,25 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
+/**
+ * Only allow same-origin, absolute in-app paths as a post-login destination.
+ * Blocks protocol-relative (`//evil.com`) and absolute-URL open redirects.
+ */
+function safeNext(raw: string | null): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  return raw;
+}
+
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = safeNext(searchParams.get("next"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +51,8 @@ export function LoginForm() {
         setLoading(false);
         return;
       }
-      router.push("/dashboard");
+      router.push(next);
+      router.refresh();
     } catch {
       setError("Network error. Please try again.");
       setLoading(false);

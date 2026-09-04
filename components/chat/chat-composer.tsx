@@ -20,6 +20,8 @@ interface ChatComposerProps {
   onChange: (value: string) => void;
   onSubmit: () => void;
   subject: string;
+  /** Subject choices for the scope picker. Defaults to the full catalog. */
+  subjectOptions?: { slug: string; name: string }[];
   onSubjectChange: (subject: string) => void;
   disabled?: boolean;
   className?: string;
@@ -31,11 +33,13 @@ export function ChatComposer({
   onChange,
   onSubmit,
   subject,
+  subjectOptions,
   onSubjectChange,
   disabled,
   className,
-  placeholder = "Ask anything about Indian law...",
+  placeholder = "Ask anything about law...",
 }: ChatComposerProps) {
+  const subjectList = subjectOptions ?? subjects;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -70,7 +74,7 @@ export function ChatComposer({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All subjects</SelectItem>
-              {subjects.map((s) => (
+              {subjectList.map((s) => (
                 <SelectItem key={s.slug} value={s.slug}>
                   {s.name}
                 </SelectItem>

@@ -13,18 +13,18 @@ export function Hero() {
         <div>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3.5 py-1.5 text-xs font-medium text-muted-foreground">
             <Sparkles className="size-3.5 text-primary" aria-hidden="true" />
-            Built specifically for Indian law
+            Built for the way law students study
           </div>
 
           <h1 className="font-heading text-4xl leading-[1.08] font-semibold tracking-tight text-balance text-foreground sm:text-5xl lg:text-6xl">
-            Master Indian Law.
+            Master the law.
             <br />
             With <span className="text-primary">AI</span> on your side.
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
             Understand sections, cases, constitutional principles and legal concepts faster
-            with an AI study companion built specifically for Indian law.
+            with an AI study companion built around your syllabus.
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">

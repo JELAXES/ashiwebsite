@@ -1,5 +1,6 @@
 import { Sparkles, User, Lightbulb, AlertTriangle, RefreshCcw } from "lucide-react";
 import { MarkdownLite } from "./markdown-lite";
+import { MessageActions } from "./message-actions";
 import { CitationCard } from "@/components/legal/citation-card";
 import { LegalDisclaimer } from "@/components/legal/legal-disclaimer";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -10,10 +11,28 @@ import { cn } from "@/lib/utils";
 interface ChatMessageProps {
   message: ChatMessageData;
   onRetry?: () => void;
+  /** Re-run a completed answer. Distinct from onRetry, which recovers an errored one. */
+  onRegenerate?: () => void;
+  regenerating?: boolean;
+  /** Save this answer to the Notebook. Omit to hide the control. */
+  onSaveToNotebook?: () => void;
+  /** Whether this answer is already persisted to the Notebook. */
+  savedToNotebook?: boolean;
+  /** Suppress the copy/share/feedback row (e.g. the static marketing demo). */
+  hideActions?: boolean;
   className?: string;
 }
 
-export function ChatMessage({ message, onRetry, className }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  onRetry,
+  onRegenerate,
+  regenerating,
+  onSaveToNotebook,
+  savedToNotebook,
+  hideActions,
+  className,
+}: ChatMessageProps) {
   const isUser = message.role === "user";
 
   return (
@@ -94,6 +113,18 @@ export function ChatMessage({ message, onRetry, className }: ChatMessageProps) {
             )}
 
             <LegalDisclaimer />
+
+            {!hideActions && (
+              <MessageActions
+                content={message.content}
+                messageId={message.id}
+                onRegenerate={onRegenerate}
+                regenerating={regenerating}
+                onSaveToNotebook={onSaveToNotebook}
+                savedToNotebook={savedToNotebook}
+                className="-ml-1.5"
+              />
+            )}
           </>
         )}
       </div>

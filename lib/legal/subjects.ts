@@ -1,17 +1,24 @@
 import type { Subject } from "./types";
+import { bbaLlbSubjects, getBbaLlbSubjectsByYear } from "./bba-llb";
+import { lawLevelToYear } from "@/lib/auth/constants";
 
 /**
  * The full subject registry: the original 16 "rich" subjects (which carry curated
  * quiz questions, flashcards, and landmark cases in quiz.ts/flashcards.ts/cases.ts)
- * plus the complete law-school (Year 1-5), CLAT, and Judiciary curriculum.
+ * plus the complete law-school (Year 1-5), CLAT, and Judiciary curriculum, plus
+ * the structured BBA LLB (Hons.) programme (see `./bba-llb.ts`).
  *
  * Curriculum entries that cover the same doctrinal ground as a rich subject set
  * `linkedSubjectSlug` to that rich subject's slug, so their subject page can surface
  * its real practice content instead of duplicating (or fabricating) new content.
  * `tracks` records which onboarding preparation choices include this subject, used
  * to personalize the dashboard, /subjects, and onboarding's subject picker.
+ *
+ * There is exactly ONE subject list. BBA LLB subjects live in their own file for
+ * readability but are spread in here, so `getSubjectBySlug`, the subject pages,
+ * and every study tool see them without any per-component hardcoding.
  */
-export const subjects: Subject[] = [
+const baseSubjects: Subject[] = [
   // ---------------------------------------------------------------------------
   // Rich subjects — carry curated quiz questions, flashcards, and landmark cases.
   // ---------------------------------------------------------------------------
@@ -835,6 +842,11 @@ export const subjects: Subject[] = [
   },
 ];
 
+/** The one and only subject registry — generic catalogue + BBA LLB programme. */
+export const subjects: Subject[] = [...baseSubjects, ...bbaLlbSubjects];
+
+export { bbaLlbSubjects, getBbaLlbSubjectsByYear };
+
 export function getSubjectBySlug(slug: string) {
   return subjects.find((s) => s.slug === slug);
 }
@@ -846,10 +858,79 @@ export function getSubjectsForTrack(lawLevel: string | null | undefined) {
 }
 
 /**
+ * The full subject list a user should see: their year's curriculum plus any
+ * subjects they've manually added from outside it (`extraSubjects`). This is the
+ * single integration point for the "add extra subjects" feature — pages call
+ * this instead of `getSubjectsForTrack` directly so that feature needs no
+ * further rewrites. Order: curriculum first, then extras, de-duplicated.
+ */
+export function getSubjectsForUser(user: {
+  lawLevel?: string | null;
+  extraSubjects?: string[] | null;
+}) {
+  const track = getSubjectsForTrack(user.lawLevel);
+  const seen = new Set(track.map((s) => s.slug));
+  const extras = (user.extraSubjects ?? [])
+    .map((slug) => getSubjectBySlug(slug))
+    .filter((s): s is Subject => !!s && !seen.has(s.slug));
+  return [...track, ...extras];
+}
+
+/**
  * Resolves the slug whose quiz/flashcard/case content should be used for a
  * curriculum subject — its own slug for rich subjects, or the rich subject it
  * links to for a curriculum-only entry (e.g. "Constitutional Law I" -> "constitutional-law").
  */
 export function getPracticeSlug(subject: Subject) {
   return subject.linkedSubjectSlug ?? subject.slug;
+}
+
+/**
+ * Given any subject slug from a URL/query param (a rich subject, a curriculum
+ * entry, or an unknown string), returns the practice slug whose curated content
+ * should be shown — or `undefined` if the slug doesn't match a real subject.
+ * Study-tool views use this so a per-subject deep link never silently falls back
+ * to the full "all subjects" pool.
+ */
+export function resolvePracticeSlug(slug: string | null | undefined): string | undefined {
+  if (!slug || slug === "all") return undefined;
+  const subject = getSubjectBySlug(slug);
+  if (!subject) return undefined;
+  return getPracticeSlug(subject);
+}
+
+/**
+ * The set of practice slugs a user's curriculum covers — every subject in their
+ * track, mapped through `getPracticeSlug`. Used to scope study-tool subject
+ * pickers to the year the student selected at onboarding.
+ */
+export function getPracticeSlugsForTrack(lawLevel: string | null | undefined): string[] {
+  const seen = new Set<string>();
+  for (const subject of getSubjectsForTrack(lawLevel)) {
+    seen.add(getPracticeSlug(subject));
+  }
+  return [...seen];
+}
+
+/**
+ * The exact curriculum slugs (NOT collapsed to a practice slug) for a track, in
+ * curriculum order. Study-tool decks key on these so two subjects that link to
+ * the same rich content — e.g. "Constitutional Law I" and "Constitutional Law
+ * II" — stay separate, selectable decks instead of merging into one.
+ */
+export function getCurriculumSlugsForTrack(lawLevel: string | null | undefined): string[] {
+  return getSubjectsForTrack(lawLevel).map((s) => s.slug);
+}
+
+/**
+ * Numeric-year view across programmes: every subject whose academic year matches,
+ * whichever programme it belongs to. Used by future "switch programme" / "compare
+ * years" features so nothing has to be rewritten when they land.
+ */
+export function getSubjectsForYear(year: number): Subject[] {
+  return subjects.filter((s) => {
+    if (s.active === false) return false;
+    if (s.year === year) return true;
+    return s.tracks.some((t) => lawLevelToYear(t) === year);
+  });
 }

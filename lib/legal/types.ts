@@ -20,7 +20,17 @@ export type SubjectSlug =
   | "labour-law"
   | "intellectual-property";
 
+/** Broad grouping used to badge and colour a subject in curriculum views. */
+export type SubjectCategory =
+  | "Law"
+  | "Management"
+  | "Skills"
+  | "Seminar"
+  | "Research";
+
 export interface Subject {
+  /** Stable identifier. Same value as `slug` — exposed as `id` for callers that
+   *  prefer that name. Never a display string; renaming a subject never changes it. */
   slug: string;
   name: string;
   shortName: string;
@@ -36,6 +46,24 @@ export interface Subject {
   linkedSubjectSlug?: string;
   /** Ids into lib/legal/acts.ts that are directly relevant to this subject. */
   relatedActIds?: string[];
+
+  // --- Structured-curriculum fields (populated for degree-program subjects such
+  //     as BBA LLB; left undefined for the generic catalogue and entrance tracks). ---
+  /** Degree programme this entry belongs to, e.g. "BBA LLB". */
+  program?: string;
+  /** Academic year 1-5 within `program`. */
+  year?: number;
+  /** Semester 1-10 within `program`. */
+  semester?: number;
+  /** Broad subject category, for badges/grouping. */
+  category?: SubjectCategory;
+  /** `false` hides the subject everywhere without deleting it. Defaults to true. */
+  active?: boolean;
+}
+
+/** `id` is an alias of `slug` — kept as a helper so callers can read either. */
+export function subjectId(subject: Pick<Subject, "slug">): string {
+  return subject.slug;
 }
 
 export type CaseSubjectTag =

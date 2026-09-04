@@ -7,8 +7,7 @@ import { CaseCard } from "@/components/legal/case-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getSubjectBySlug, getPracticeSlug } from "@/lib/legal/subjects";
 import { landmarkCases } from "@/lib/legal/cases";
-import { getQuizBySubject } from "@/lib/legal/quiz";
-import { getFlashcardsBySubject } from "@/lib/legal/flashcards";
+import { getFlashcardDecks, getQuizDecks } from "@/lib/content/decks";
 import { getStarterQuestions } from "@/lib/legal/starter-questions";
 import { legalActs } from "@/lib/legal/acts";
 import { renderSubjectIcon } from "@/lib/legal/icon-map";
@@ -39,8 +38,10 @@ export default async function SubjectDetailPage(props: PageProps<"/subjects/[slu
   const practiceSlug = getPracticeSlug(subject);
   const practiceSubject = getSubjectBySlug(practiceSlug) ?? subject;
   const relatedCases = landmarkCases.filter((c) => c.subject === practiceSubject.name).slice(0, 3);
-  const quizCount = getQuizBySubject(practiceSlug).length;
-  const flashcardCount = getFlashcardsBySubject(practiceSlug).length;
+  const [flashcardDeck] = await getFlashcardDecks([subject.slug]);
+  const [quizDeck] = await getQuizDecks([subject.slug]);
+  const quizCount = quizDeck?.questions.length ?? 0;
+  const flashcardCount = flashcardDeck?.cards.length ?? 0;
   const starterQuestions = getStarterQuestions(subject);
   const relatedActIds = subject.relatedActIds ?? practiceSubject.relatedActIds ?? [];
   const relatedActs = relatedActIds
@@ -114,7 +115,7 @@ export default async function SubjectDetailPage(props: PageProps<"/subjects/[slu
         <h2 className="font-heading text-lg font-semibold text-foreground">Practice this subject</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Link
-            href={`/study-tools/quiz?subject=${practiceSlug}`}
+            href={`/study-tools/quiz?subject=${subject.slug}`}
             className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-secondary">
@@ -126,7 +127,7 @@ export default async function SubjectDetailPage(props: PageProps<"/subjects/[slu
             </div>
           </Link>
           <Link
-            href={`/study-tools/flashcards?subject=${practiceSlug}`}
+            href={`/study-tools/flashcards?subject=${subject.slug}`}
             className="flex items-center gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-secondary">

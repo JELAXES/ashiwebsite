@@ -27,16 +27,16 @@ const sourceSerif = Source_Serif_4({
 export const metadata: Metadata = {
   metadataBase: new URL("https://studyrex.app"),
   title: {
-    default: "StudyRex — Master Indian Law with AI",
+    default: "StudyRex — Master the law with AI",
     template: "%s · StudyRex",
   },
   description:
-    "StudyRex is an AI-powered study companion for Indian law students, CLAT aspirants, and judiciary candidates. Understand sections, cases, and constitutional principles faster.",
+    "StudyRex is an AI-powered study companion for law students, CLAT aspirants, and judiciary candidates. Understand sections, cases, and constitutional principles faster.",
   keywords: [
+    "law student AI tutor",
     "Indian law",
     "CLAT preparation",
     "judiciary exam",
-    "law student AI tutor",
     "Constitution of India",
     "BNS",
     "case law",

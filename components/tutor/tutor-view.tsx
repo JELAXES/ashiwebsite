@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
-import { MessageSquarePlus, PanelLeft, Info, Sparkles, Pencil, Trash2 } from "lucide-react";
+import { MessageSquarePlus, NotebookPen, Info, Sparkles, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ChatMessage } from "@/components/chat/chat-message";
 import { ChatComposer } from "@/components/chat/chat-composer";
@@ -59,21 +59,40 @@ function newId() {
     : Math.random().toString(36).slice(2);
 }
 
+export interface TutorSubjectOption {
+  slug: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
 function initialSubjectFromParams(searchParams: ReadonlyURLSearchParams): string {
   const subjectParam = searchParams.get("subject");
   if (subjectParam && subjects.some((s) => s.slug === subjectParam)) return subjectParam;
   return "all";
 }
 
-export function TutorView() {
+export function TutorView({ subjectOptions }: { subjectOptions: TutorSubjectOption[] }) {
   const searchParams = useSearchParams();
   // Remount when the query string changes so a fresh subject/conversation
   // (e.g. from an "Ask AI about this" link) starts a clean session, without
   // needing an effect to sync external URL state into local state.
-  return <TutorViewInner key={searchParams.toString()} searchParams={searchParams} />;
+  return (
+    <TutorViewInner
+      key={searchParams.toString()}
+      searchParams={searchParams}
+      subjectOptions={subjectOptions}
+    />
+  );
 }
 
-function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParams }) {
+function TutorViewInner({
+  searchParams,
+  subjectOptions,
+}: {
+  searchParams: ReadonlyURLSearchParams;
+  subjectOptions: TutorSubjectOption[];
+}) {
   const router = useRouter();
   const initialConversationId = searchParams.get("conversation") ?? undefined;
   const initialPrompt = searchParams.get("prompt") ?? undefined;
@@ -82,7 +101,7 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
   const [subject, setSubject] = useState(() => initialSubjectFromParams(searchParams));
   const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [notebookOpen, setNotebookOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   // Synchronous guard against a double-fire (e.g. a very fast double click/Enter)
@@ -272,13 +291,21 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
     void requestAnswer(assistantId, question, history);
   }
 
+  function handleSaveToNotebook() {
+    if (conversationId) {
+      toast.success("Saved in your Notebook — open it any time from the sidebar or the Notebook page.");
+    } else {
+      toast("This conversation saves to your Notebook automatically once the answer finishes.");
+    }
+  }
+
   function startNewChat() {
-    setHistoryOpen(false);
+    setNotebookOpen(false);
     router.push("/tutor");
   }
 
   function resumeConversation(id: string) {
-    setHistoryOpen(false);
+    setNotebookOpen(false);
     router.push(`/tutor?conversation=${id}`);
   }
 
@@ -321,7 +348,7 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
   return (
     <div className="flex h-[calc(100vh-4rem)] min-h-0">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border lg:flex">
-        <HistoryPanel
+        <NotebookPanel
           conversations={conversations}
           onNewChat={startNewChat}
           onSelect={resumeConversation}
@@ -332,18 +359,18 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2 border-b border-border px-4 py-2.5 lg:hidden">
-          <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+          <Sheet open={notebookOpen} onOpenChange={setNotebookOpen}>
             <SheetTrigger
-              render={<Button variant="ghost" size="sm" className="gap-1.5" aria-label="Open conversation history" />}
+              render={<Button variant="ghost" size="sm" className="gap-1.5" aria-label="Open notebook" />}
             >
-              <PanelLeft className="size-4" />
-              History
+              <NotebookPen className="size-4" />
+              Notebook
             </SheetTrigger>
             <SheetContent side="left" className="w-72 p-0">
               <SheetHeader className="border-b border-border">
-                <SheetTitle>Conversations</SheetTitle>
+                <SheetTitle>Notebook</SheetTitle>
               </SheetHeader>
-              <HistoryPanel
+              <NotebookPanel
                 conversations={conversations}
                 onNewChat={startNewChat}
                 onSelect={resumeConversation}
@@ -364,7 +391,12 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
               <SheetHeader>
                 <SheetTitle>Study context</SheetTitle>
               </SheetHeader>
-              <ContextPanel subject={subject} onSelectSubject={setSubject} onSendPrompt={sendQuestion} />
+              <ContextPanel
+                subject={subject}
+                subjectOptions={subjectOptions}
+                onSelectSubject={setSubject}
+                onSendPrompt={sendQuestion}
+              />
             </SheetContent>
           </Sheet>
         </div>
@@ -374,9 +406,20 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
             <EmptyTutorState onSelectPrompt={sendQuestion} />
           ) : (
             <div className="mx-auto flex max-w-3xl flex-col gap-6">
-              {messages.map((m) => (
-                <ChatMessage key={m.id} message={m} onRetry={m.error ? () => retryMessage(m.id) : undefined} />
-              ))}
+              {messages.map((m) => {
+                const isCompletedAnswer = m.role === "assistant" && !m.pending && !m.error;
+                return (
+                  <ChatMessage
+                    key={m.id}
+                    message={m}
+                    onRetry={m.error ? () => retryMessage(m.id) : undefined}
+                    onRegenerate={isCompletedAnswer ? () => retryMessage(m.id) : undefined}
+                    regenerating={isBusy}
+                    onSaveToNotebook={isCompletedAnswer ? () => handleSaveToNotebook() : undefined}
+                    savedToNotebook={isCompletedAnswer && !!conversationId}
+                  />
+                );
+              })}
               {showFollowUps && (
                 <FollowUpSuggestions
                   suggestions={lastMessage.followUps ?? []}
@@ -396,6 +439,7 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
               onChange={setInput}
               onSubmit={() => sendQuestion(input)}
               subject={subject}
+              subjectOptions={subjectOptions}
               onSubjectChange={setSubject}
               disabled={isBusy}
             />
@@ -404,13 +448,18 @@ function TutorViewInner({ searchParams }: { searchParams: ReadonlyURLSearchParam
       </div>
 
       <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border xl:flex">
-        <ContextPanel subject={subject} onSelectSubject={setSubject} onSendPrompt={sendQuestion} />
+        <ContextPanel
+          subject={subject}
+          subjectOptions={subjectOptions}
+          onSelectSubject={setSubject}
+          onSendPrompt={sendQuestion}
+        />
       </aside>
     </div>
   );
 }
 
-function HistoryPanel({
+function NotebookPanel({
   conversations,
   onNewChat,
   onSelect,
@@ -549,14 +598,17 @@ function HistoryPanel({
 
 function ContextPanel({
   subject,
+  subjectOptions,
   onSelectSubject,
   onSendPrompt,
 }: {
   subject: string;
+  subjectOptions: TutorSubjectOption[];
   onSelectSubject: (slug: string) => void;
   onSendPrompt: (prompt: string) => void;
 }) {
-  const activeSubject = subjects.find((s) => s.slug === subject);
+  const activeSubject =
+    subjectOptions.find((s) => s.slug === subject) ?? subjects.find((s) => s.slug === subject);
 
   return (
     <div className="flex flex-col gap-6 p-4">
@@ -579,7 +631,7 @@ function ContextPanel({
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            {subjects.slice(0, 6).map((s) => (
+            {subjectOptions.slice(0, 6).map((s) => (
               <button
                 key={s.slug}
                 type="button"
@@ -629,7 +681,7 @@ function EmptyTutorState({ onSelectPrompt }: { onSelectPrompt: (prompt: string) 
         <Sparkles className="size-5" aria-hidden="true" />
       </div>
       <h1 className="mt-4 font-heading text-xl font-semibold text-foreground">
-        Ask anything about Indian law.
+        Ask anything about law.
       </h1>
       <p className="mt-2 max-w-md text-sm text-muted-foreground">
         Constitutional provisions, landmark cases, criminal law, or the exact section you need for an

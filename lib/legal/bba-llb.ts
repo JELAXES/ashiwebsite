@@ -1,0 +1,725 @@
+import type { Subject } from "./types";
+
+/**
+ * BBA LLB (Hons.) — 5-year integrated programme.
+ *
+ * This array is the **single source of truth** for the BBA LLB curriculum. No
+ * component hardcodes its own copy of these subjects; everything reads them
+ * through `lib/legal/subjects.ts` (they are spread into the main `subjects`
+ * registry) or the year helpers there.
+ *
+ * Conventions
+ * -----------
+ * - `slug` is a stable id, namespaced `bballb-` so it can never collide with the
+ *   generic LLB catalogue. Renaming a subject never changes its slug.
+ * - `linkedSubjectSlug` points at the "rich" doctrinal subject that already
+ *   carries curated cases / flashcards / quiz questions, so a BBA LLB subject
+ *   reuses that content instead of duplicating or fabricating it. Management,
+ *   skills, seminar and research papers have no doctrinal twin and are left
+ *   unlinked (they show a clean empty state until real content is imported).
+ * - `year` / `semester` follow the standard BBA LLB scheme; `category` drives
+ *   badging. `active: true` everywhere — flip to false to retire a paper without
+ *   deleting it or breaking stored references.
+ * - "Comprehensive Viva" / "Comprehensive Viva and Summer Internship Assessment"
+ *   are deliberately NOT included — they are assessments, not teachable subjects.
+ */
+export const bbaLlbSubjects: Subject[] = [
+  // ─── Year 1 — Semester 1 ────────────────────────────────────────────────────
+  {
+    slug: "bballb-legal-method",
+    name: "Legal Method",
+    shortName: "Legal Method",
+    description:
+      "How the legal system is put together and how lawyers reason: sources of law, precedent, statutory interpretation, and legal research.",
+    icon: "Scale",
+    tracks: ["BBA LLB Year 1"],
+    program: "BBA LLB",
+    year: 1,
+    semester: 1,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "legal-methods",
+  },
+  {
+    slug: "bballb-legal-english",
+    name: "Legal English and Communication Skills",
+    shortName: "Legal English",
+    description:
+      "Legal vocabulary, drafting conventions, comprehension of judgments and statutes, and precise written and spoken advocacy.",
+    icon: "Languages",
+    tracks: ["BBA LLB Year 1"],
+    program: "BBA LLB",
+    year: 1,
+    semester: 1,
+    category: "Skills",
+    active: true,
+    linkedSubjectSlug: "legal-language",
+  },
+  {
+    slug: "bballb-managerial-economics",
+    name: "Managerial Economics",
+    shortName: "Managerial Econ.",
+    description:
+      "Micro- and macroeconomic tools for business decisions: demand, cost, market structure, pricing, and national-income concepts.",
+    icon: "TrendingUp",
+    tracks: ["BBA LLB Year 1"],
+    program: "BBA LLB",
+    year: 1,
+    semester: 1,
+    category: "Management",
+    active: true,
+  },
+  {
+    slug: "bballb-contract-1",
+    name: "Law of Contract I",
+    shortName: "Contract I",
+    description:
+      "Formation of a valid contract — offer, acceptance, consideration, capacity, free consent — and void and voidable agreements.",
+    icon: "FileSignature",
+    tracks: ["BBA LLB Year 1"],
+    program: "BBA LLB",
+    year: 1,
+    semester: 1,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "contract-law",
+  },
+  {
+    slug: "bballb-principles-of-management",
+    name: "Principles of Management",
+    shortName: "Principles of Mgmt.",
+    description:
+      "Planning, organising, staffing, directing and controlling; classical and modern management thought and the functions of a manager.",
+    icon: "Briefcase",
+    tracks: ["BBA LLB Year 1"],
+    program: "BBA LLB",
+    year: 1,
+    semester: 1,
+    category: "Management",
+    active: true,
+  },
+
+  // ─── Year 1 — Semester 2 ────────────────────────────────────────────────────
+  {
+    slug: "bballb-contract-2",
+    name: "Law of Contract II",
+    shortName: "Contract II",
+    description:
+      "Special contracts — indemnity and guarantee, bailment and pledge, agency, and the sale of goods.",
+    icon: "FileSignature",
+    tracks: ["BBA LLB Year 1"],
+    program: "BBA LLB",
+    year: 1,
+    semester: 2,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "contract-law",
+  },
+  {
+    slug: "bballb-torts-consumer",
+    name: "Law of Torts and Consumer Protection",
+    shortName: "Torts & Consumer",
+    description:
+      "Civil wrongs, negligence, nuisance, defamation, strict and absolute liability, and the statutory consumer-protection regime.",
+    icon: "ShieldAlert",
+    tracks: ["BBA LLB Year 1"],
+    program: "BBA LLB",
+    year: 1,
+    semester: 2,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "tort-law",
+  },
+  {
+    slug: "bballb-financial-management",
+    name: "Financial Management",
+    shortName: "Financial Mgmt.",
+    description:
+      "Time value of money, capital budgeting, capital structure, cost of capital, working-capital management and dividend policy.",
+    icon: "Wallet",
+    tracks: ["BBA LLB Year 1"],
+    program: "BBA LLB",
+    year: 1,
+    semester: 2,
+    category: "Management",
+    active: true,
+  },
+  {
+    slug: "bballb-organisational-behaviour",
+    name: "Organisational Behaviour",
+    shortName: "Org. Behaviour",
+    description:
+      "Individual and group behaviour in organisations: motivation, leadership, perception, team dynamics and organisational culture.",
+    icon: "Users",
+    tracks: ["BBA LLB Year 1"],
+    program: "BBA LLB",
+    year: 1,
+    semester: 2,
+    category: "Management",
+    active: true,
+  },
+  {
+    slug: "bballb-marketing-management",
+    name: "Marketing Management",
+    shortName: "Marketing Mgmt.",
+    description:
+      "The marketing mix, segmentation-targeting-positioning, consumer behaviour, branding and the product life cycle.",
+    icon: "Megaphone",
+    tracks: ["BBA LLB Year 1"],
+    program: "BBA LLB",
+    year: 1,
+    semester: 2,
+    category: "Management",
+    active: true,
+  },
+
+  // ─── Year 2 — Semester 3 ────────────────────────────────────────────────────
+  {
+    slug: "bballb-family-law-1",
+    name: "Family Law I",
+    shortName: "Family Law I",
+    description:
+      "Hindu personal law — marriage, matrimonial remedies, maintenance, guardianship, and the Hindu joint family and succession.",
+    icon: "Users",
+    tracks: ["BBA LLB Year 2"],
+    program: "BBA LLB",
+    year: 2,
+    semester: 3,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "family-law",
+  },
+  {
+    slug: "bballb-crimes-1",
+    name: "Law of Crimes I",
+    shortName: "Crimes I",
+    description:
+      "General principles of criminal liability — mens rea, actus reus, stages of a crime, joint and group liability, and general exceptions — under the BNS and historical IPC.",
+    icon: "Gavel",
+    tracks: ["BBA LLB Year 2"],
+    program: "BBA LLB",
+    year: 2,
+    semester: 3,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "criminal-law",
+  },
+  {
+    slug: "bballb-hrm",
+    name: "Human Resource Management",
+    shortName: "HRM",
+    description:
+      "HR planning, recruitment and selection, training and development, performance appraisal, compensation and industrial relations.",
+    icon: "Handshake",
+    tracks: ["BBA LLB Year 2"],
+    program: "BBA LLB",
+    year: 2,
+    semester: 3,
+    category: "Management",
+    active: true,
+  },
+  {
+    slug: "bballb-constitutional-law-1",
+    name: "Constitutional Law I",
+    shortName: "Const. Law I",
+    description:
+      "The making and salient features of the Constitution, the Union and State executive and legislature, and Centre-State relations.",
+    icon: "Landmark",
+    tracks: ["BBA LLB Year 2"],
+    program: "BBA LLB",
+    year: 2,
+    semester: 3,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "constitutional-law",
+  },
+  {
+    slug: "bballb-business-environment-ethics",
+    name: "Business Environment & Ethical Practices",
+    shortName: "Business Env. & Ethics",
+    description:
+      "The economic, political, legal and social environment of business, corporate social responsibility and business ethics.",
+    icon: "BadgeCheck",
+    tracks: ["BBA LLB Year 2"],
+    program: "BBA LLB",
+    year: 2,
+    semester: 3,
+    category: "Management",
+    active: true,
+  },
+
+  // ─── Year 2 — Semester 4 ────────────────────────────────────────────────────
+  {
+    slug: "bballb-family-law-2",
+    name: "Family Law II",
+    shortName: "Family Law II",
+    description:
+      "Muslim and Christian personal law — marriage, dower, dissolution, iddat, and succession — and the Indian Succession Act.",
+    icon: "Users",
+    tracks: ["BBA LLB Year 2"],
+    program: "BBA LLB",
+    year: 2,
+    semester: 4,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "family-law",
+  },
+  {
+    slug: "bballb-constitutional-law-2",
+    name: "Constitutional Law II",
+    shortName: "Const. Law II",
+    description:
+      "Fundamental Rights, Directive Principles, Fundamental Duties, constitutional remedies, emergency provisions and amendment of the Constitution.",
+    icon: "Landmark",
+    tracks: ["BBA LLB Year 2"],
+    program: "BBA LLB",
+    year: 2,
+    semester: 4,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "constitutional-law",
+  },
+  {
+    slug: "bballb-crimes-2",
+    name: "Law of Crimes II",
+    shortName: "Crimes II",
+    description:
+      "Specific offences against the human body, property, the state, public tranquillity and women, under the BNS and historical IPC.",
+    icon: "Gavel",
+    tracks: ["BBA LLB Year 2"],
+    program: "BBA LLB",
+    year: 2,
+    semester: 4,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "criminal-law",
+  },
+  {
+    slug: "bballb-administrative-law",
+    name: "Administrative Law",
+    shortName: "Admin Law",
+    description:
+      "Delegated legislation, natural justice, administrative discretion, judicial review, tribunals and public-law remedies.",
+    icon: "Scale",
+    tracks: ["BBA LLB Year 2"],
+    program: "BBA LLB",
+    year: 2,
+    semester: 4,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "administrative-law",
+  },
+  {
+    slug: "bballb-strategic-management",
+    name: "Strategic Management",
+    shortName: "Strategic Mgmt.",
+    description:
+      "Strategy formulation and implementation, SWOT and industry analysis, competitive advantage, and corporate and business-level strategy.",
+    icon: "Target",
+    tracks: ["BBA LLB Year 2"],
+    program: "BBA LLB",
+    year: 2,
+    semester: 4,
+    category: "Management",
+    active: true,
+  },
+
+  // ─── Year 3 — Semester 5 ────────────────────────────────────────────────────
+  {
+    slug: "bballb-environmental-law",
+    name: "Environmental Studies and Environmental Laws",
+    shortName: "Environmental Law",
+    description:
+      "Ecological concepts, the constitutional basis for environmental protection, and the Water, Air, EP and forest/wildlife statutes.",
+    icon: "Leaf",
+    tracks: ["BBA LLB Year 3"],
+    program: "BBA LLB",
+    year: 3,
+    semester: 5,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "environmental-law",
+  },
+  {
+    slug: "bballb-corporate-law",
+    name: "Corporate Law",
+    shortName: "Corporate Law",
+    description:
+      "Incorporation, memorandum and articles, corporate personality, share capital, management, meetings and winding up under the Companies Act, 2013.",
+    icon: "Building2",
+    tracks: ["BBA LLB Year 3"],
+    program: "BBA LLB",
+    year: 3,
+    semester: 5,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "company-law",
+  },
+  {
+    slug: "bballb-adr",
+    name: "Alternative Dispute Resolution",
+    shortName: "ADR",
+    description:
+      "Arbitration, conciliation, mediation, negotiation and Lok Adalats under the Arbitration and Conciliation Act, 1996 and section 89 CPC.",
+    icon: "Handshake",
+    tracks: ["BBA LLB Year 3"],
+    program: "BBA LLB",
+    year: 3,
+    semester: 5,
+    category: "Law",
+    active: true,
+  },
+  {
+    slug: "bballb-evidence",
+    name: "Law of Evidence",
+    shortName: "Evidence",
+    description:
+      "Relevancy, admissibility, burden of proof, presumptions, witnesses, examination and documentary evidence under the BSA and historical Evidence Act.",
+    icon: "FileSearch",
+    tracks: ["BBA LLB Year 3"],
+    program: "BBA LLB",
+    year: 3,
+    semester: 5,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "evidence-bsa",
+  },
+  {
+    slug: "bballb-cpc",
+    name: "Code of Civil Procedure",
+    shortName: "CPC",
+    description:
+      "Jurisdiction, res judicata, pleadings, framing of issues, trial, judgment and decree, execution, appeals and interim remedies under the CPC, 1908.",
+    icon: "FileStack",
+    tracks: ["BBA LLB Year 3"],
+    program: "BBA LLB",
+    year: 3,
+    semester: 5,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "cpc",
+  },
+
+  // ─── Year 3 — Semester 6 ────────────────────────────────────────────────────
+  {
+    slug: "bballb-jurisprudence",
+    name: "Jurisprudence",
+    shortName: "Jurisprudence",
+    description:
+      "Schools of legal thought — natural law, positivism, historical, sociological and realist — and core concepts of rights, duties, ownership and possession.",
+    icon: "BookOpenText",
+    tracks: ["BBA LLB Year 3"],
+    program: "BBA LLB",
+    year: 3,
+    semester: 6,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "jurisprudence",
+  },
+  {
+    slug: "bballb-international-law",
+    name: "International Law",
+    shortName: "Intl. Law",
+    description:
+      "Sources of public international law, subjects, statehood and recognition, jurisdiction, state responsibility, treaties and the UN system.",
+    icon: "Globe2",
+    tracks: ["BBA LLB Year 3"],
+    program: "BBA LLB",
+    year: 3,
+    semester: 6,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "international-law",
+  },
+  {
+    slug: "bballb-property-law",
+    name: "Property Law",
+    shortName: "Property Law",
+    description:
+      "General principles of transfer of property, sale, mortgage, lease, exchange, gift and actionable claims under the Transfer of Property Act, 1882.",
+    icon: "Home",
+    tracks: ["BBA LLB Year 3"],
+    program: "BBA LLB",
+    year: 3,
+    semester: 6,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "property-law",
+  },
+  {
+    slug: "bballb-investment-competition-law",
+    name: "Investment and Competition Law",
+    shortName: "Investment & Competition",
+    description:
+      "Foreign investment regulation (FEMA, the FDI policy) and competition law — anti-competitive agreements, abuse of dominance and regulation of combinations.",
+    icon: "LineChart",
+    tracks: ["BBA LLB Year 3"],
+    program: "BBA LLB",
+    year: 3,
+    semester: 6,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "competition-law",
+  },
+  {
+    slug: "bballb-crpc",
+    name: "Code of Criminal Procedure",
+    shortName: "CrPC",
+    description:
+      "The machinery of criminal justice — arrest, FIR and investigation, bail, cognizance, trial, judgment and appeals — under the BNSS and historical CrPC.",
+    icon: "ClipboardList",
+    tracks: ["BBA LLB Year 3"],
+    program: "BBA LLB",
+    year: 3,
+    semester: 6,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "bnss",
+  },
+
+  // ─── Year 4 — Semester 7 ────────────────────────────────────────────────────
+  {
+    slug: "bballb-labour-law-1",
+    name: "Labour Law I",
+    shortName: "Labour Law I",
+    description:
+      "Industrial relations — trade unions, industrial disputes, strikes, lock-outs, lay-off and retrenchment — and the shift to the Labour Codes.",
+    icon: "HardHat",
+    tracks: ["BBA LLB Year 4"],
+    program: "BBA LLB",
+    year: 4,
+    semester: 7,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "labour-law",
+  },
+  {
+    slug: "bballb-law-emerging-tech",
+    name: "Law and Emerging Technologies",
+    shortName: "Law & Emerging Tech",
+    description:
+      "Regulation of the digital world — data protection, AI, blockchain, e-commerce and cyber offences under the IT Act and the DPDP Act, 2023.",
+    icon: "Wifi",
+    tracks: ["BBA LLB Year 4"],
+    program: "BBA LLB",
+    year: 4,
+    semester: 7,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "cyber-law",
+  },
+  {
+    slug: "bballb-seminar-paper-1",
+    name: "Seminar Paper I",
+    shortName: "Seminar Paper I",
+    description:
+      "A supervised research paper — choosing a research question, reviewing literature, building an argument and presenting findings.",
+    icon: "PenLine",
+    tracks: ["BBA LLB Year 4"],
+    program: "BBA LLB",
+    year: 4,
+    semester: 7,
+    category: "Seminar",
+    active: true,
+  },
+  {
+    slug: "bballb-tax-law",
+    name: "Tax Law",
+    shortName: "Tax Law",
+    description:
+      "Direct tax — charge of income tax, residential status, heads of income, deductions and assessment — and an introduction to GST.",
+    icon: "Percent",
+    tracks: ["BBA LLB Year 4"],
+    program: "BBA LLB",
+    year: 4,
+    semester: 7,
+    category: "Law",
+    active: true,
+  },
+  {
+    slug: "bballb-human-rights",
+    name: "Human Rights",
+    shortName: "Human Rights",
+    description:
+      "The concept and generations of human rights, the international framework (UDHR and the Covenants), and enforcement in India through the Constitution and NHRC.",
+    icon: "HeartHandshake",
+    tracks: ["BBA LLB Year 4"],
+    program: "BBA LLB",
+    year: 4,
+    semester: 7,
+    category: "Law",
+    active: true,
+  },
+
+  // ─── Year 4 — Semester 8 ────────────────────────────────────────────────────
+  {
+    slug: "bballb-ipr",
+    name: "Intellectual Property Rights",
+    shortName: "IPR",
+    description:
+      "Copyright, trademarks, patents, designs, geographical indications and trade secrets — subsistence, registration, infringement and remedies.",
+    icon: "Lightbulb",
+    tracks: ["BBA LLB Year 4"],
+    program: "BBA LLB",
+    year: 4,
+    semester: 8,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "intellectual-property",
+  },
+  {
+    slug: "bballb-labour-law-2",
+    name: "Labour Law II",
+    shortName: "Labour Law II",
+    description:
+      "Social security and wage legislation — wages, bonus, gratuity, provident fund, ESI and the Code on Social Security, 2020.",
+    icon: "HardHat",
+    tracks: ["BBA LLB Year 4"],
+    program: "BBA LLB",
+    year: 4,
+    semester: 8,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "labour-law",
+  },
+  {
+    slug: "bballb-interpretation-of-statutes",
+    name: "Interpretation of Statutes",
+    shortName: "Interpretation",
+    description:
+      "Rules of interpretation — literal, golden and mischief rules — internal and external aids, presumptions, and interpretation of penal and taxing statutes.",
+    icon: "BookOpenCheck",
+    tracks: ["BBA LLB Year 4"],
+    program: "BBA LLB",
+    year: 4,
+    semester: 8,
+    category: "Law",
+    active: true,
+  },
+  {
+    slug: "bballb-international-trade-law",
+    name: "International Trade Law",
+    shortName: "Intl. Trade Law",
+    description:
+      "The WTO framework — GATT, GATS and TRIPS — dispute settlement, anti-dumping and subsidies, and the law of international commercial contracts.",
+    icon: "Ship",
+    tracks: ["BBA LLB Year 4"],
+    program: "BBA LLB",
+    year: 4,
+    semester: 8,
+    category: "Law",
+    active: true,
+    linkedSubjectSlug: "international-trade-law",
+  },
+  {
+    slug: "bballb-seminar-paper-2",
+    name: "Seminar Paper II",
+    shortName: "Seminar Paper II",
+    description:
+      "A second supervised research paper, building on Seminar Paper I with a more demanding research question and deeper doctrinal analysis.",
+    icon: "PenLine",
+    tracks: ["BBA LLB Year 4"],
+    program: "BBA LLB",
+    year: 4,
+    semester: 8,
+    category: "Seminar",
+    active: true,
+  },
+
+  // ─── Year 5 — Semester 9 ────────────────────────────────────────────────────
+  {
+    slug: "bballb-legal-ethics-court-craft",
+    name: "Legal Ethics and Court Crafts",
+    shortName: "Legal Ethics & Court Craft",
+    description:
+      "Professional conduct and etiquette for advocates, the Bar Council rules, contempt of court, the Advocates Act, 1961 and courtroom craft.",
+    icon: "BadgeCheck",
+    tracks: ["BBA LLB Year 5"],
+    program: "BBA LLB",
+    year: 5,
+    semester: 9,
+    category: "Skills",
+    active: true,
+    linkedSubjectSlug: "professional-ethics",
+  },
+  {
+    slug: "bballb-land-real-estate-laws",
+    name: "Land and Real Estate Laws",
+    shortName: "Land & Real Estate",
+    description:
+      "Land acquisition and compensation, land revenue and tenancy, registration and stamp duty, and the RERA regime for real-estate projects.",
+    icon: "Home",
+    tracks: ["BBA LLB Year 5"],
+    program: "BBA LLB",
+    year: 5,
+    semester: 9,
+    category: "Law",
+    active: true,
+  },
+  {
+    slug: "bballb-seminar-paper-3",
+    name: "Seminar Paper III",
+    shortName: "Seminar Paper III",
+    description:
+      "A third supervised research paper, typically in a chosen area of specialisation, developing an original argument fit for publication.",
+    icon: "PenLine",
+    tracks: ["BBA LLB Year 5"],
+    program: "BBA LLB",
+    year: 5,
+    semester: 9,
+    category: "Seminar",
+    active: true,
+  },
+  {
+    slug: "bballb-seminar-paper-4",
+    name: "Seminar Paper IV",
+    shortName: "Seminar Paper IV",
+    description:
+      "A fourth supervised research paper, consolidating research and writing skills ahead of the final-year dissertation.",
+    icon: "PenLine",
+    tracks: ["BBA LLB Year 5"],
+    program: "BBA LLB",
+    year: 5,
+    semester: 9,
+    category: "Seminar",
+    active: true,
+  },
+  {
+    slug: "bballb-drafting-pleading-conveyancing",
+    name: "Drafting, Pleading and Conveyancing",
+    shortName: "Drafting & Pleading",
+    description:
+      "Drafting plaints, written statements, petitions, notices, affidavits and interlocutory applications, and conveyancing of deeds and commercial agreements.",
+    icon: "PenLine",
+    tracks: ["BBA LLB Year 5"],
+    program: "BBA LLB",
+    year: 5,
+    semester: 9,
+    category: "Skills",
+    active: true,
+  },
+
+  // ─── Year 5 — Semester 10 ───────────────────────────────────────────────────
+  {
+    slug: "bballb-dissertation",
+    name: "Dissertation",
+    shortName: "Dissertation",
+    description:
+      "An independent, book-length piece of legal research under a supervisor — research design, methodology, fieldwork or doctrinal analysis, and a defended write-up.",
+    icon: "FlaskConical",
+    tracks: ["BBA LLB Year 5"],
+    program: "BBA LLB",
+    year: 5,
+    semester: 10,
+    category: "Research",
+    active: true,
+    linkedSubjectSlug: "dissertation-research",
+  },
+];
+
+/** Every BBA LLB subject for a given academic year (1-5), in semester order. */
+export function getBbaLlbSubjectsByYear(year: number): Subject[] {
+  return bbaLlbSubjects
+    .filter((s) => s.year === year && s.active !== false)
+    .sort((a, b) => (a.semester ?? 0) - (b.semester ?? 0));
+}

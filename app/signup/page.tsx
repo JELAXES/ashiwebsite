@@ -12,7 +12,7 @@ export default function SignupPage() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Start studying Indian law with an AI tutor built for exam prep."
+      subtitle="Start studying law with an AI tutor built for exam prep."
       footer={
         <>
           Already have an account?{" "}

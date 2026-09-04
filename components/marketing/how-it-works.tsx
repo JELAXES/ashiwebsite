@@ -5,7 +5,7 @@ const steps = [
     number: "01",
     icon: MessageCircleQuestion,
     title: "Ask",
-    description: "Ask any Indian law question, in your own words.",
+    description: "Ask any law question, in your own words.",
   },
   {
     number: "02",
