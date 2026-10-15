@@ -52,11 +52,14 @@ export async function getNotificationsForUser(
     });
   }
 
-  if (stats.studyStreakDays === 0) {
+  if (!stats.studiedToday) {
     items.push({
       id: "streak-idle",
       title: "No study activity today",
-      body: "Ask the AI Tutor one question to keep your streak alive.",
+      body:
+        stats.studyStreakDays > 0
+          ? `Ask the AI Tutor one question to keep your ${stats.studyStreakDays}-day streak alive.`
+          : "Ask the AI Tutor one question to start a streak.",
       href: "/tutor",
       time: "",
       actionable: true,

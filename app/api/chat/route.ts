@@ -9,8 +9,12 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Conversation } from "@/lib/db/models/conversation";
 import { subjects } from "@/lib/legal/subjects";
+import { isValidObjectId } from "mongoose";
 
 const AI_UNAVAILABLE_MESSAGE = "StudyRex AI is temporarily unavailable. Please try again.";
+const AI_BUSY_MESSAGE = "StudyRex AI is busy right now. Please try again in a moment.";
+/** Don't spend a second full model call on an unstructured-response retry if the first already took this long. */
+const UNSTRUCTURED_RETRY_BUDGET_MS = 25_000;
 
 /**
  * Persists a chat turn for the signed-in user. Best-effort: a persistence
@@ -23,6 +27,7 @@ async function persistTurn(
   question: string,
   subjectHint: string | undefined,
   result: ChatApiResponse,
+  replaceLast: boolean,
 ): Promise<string | undefined> {
   try {
     await connectToDatabase();
@@ -40,13 +45,34 @@ async function persistTurn(
       createdAt: new Date(),
     };
 
-    if (conversationId) {
-      const updated = await Conversation.findOneAndUpdate(
-        { _id: conversationId, userId },
-        { $push: { messages: { $each: [userMessage, assistantMessage] } } },
-        { new: true },
-      );
-      if (updated) return updated._id.toString();
+    // A malformed id can't match a conversation — fall through and start a new one.
+    if (conversationId && isValidObjectId(conversationId)) {
+      if (replaceLast) {
+        // Regenerate / retry of the latest question: swap the previous turn for this
+        // one instead of appending a duplicate pair that the UI never showed.
+        const conversation = await Conversation.findOne({ _id: conversationId, userId });
+        if (conversation) {
+          const n = conversation.messages.length;
+          if (
+            n >= 2 &&
+            conversation.messages[n - 2].role === "user" &&
+            conversation.messages[n - 2].content === question &&
+            conversation.messages[n - 1].role === "assistant"
+          ) {
+            conversation.messages.splice(n - 2, 2);
+          }
+          conversation.messages.push(userMessage, assistantMessage);
+          await conversation.save();
+          return conversation._id.toString();
+        }
+      } else {
+        const updated = await Conversation.findOneAndUpdate(
+          { _id: conversationId, userId },
+          { $push: { messages: { $each: [userMessage, assistantMessage] } } },
+          { new: true },
+        );
+        if (updated) return updated._id.toString();
+      }
     }
 
     const created = await Conversation.create({
@@ -107,6 +133,7 @@ export async function POST(request: Request) {
 
   const subject = typeof body.subject === "string" ? body.subject : undefined;
   const conversationId = typeof body.conversationId === "string" ? body.conversationId : undefined;
+  const replaceLast = body.replaceLast === true;
 
   const user = await getCurrentUser().catch(() => null);
   const studentContext: StudentContext | undefined = user
@@ -166,20 +193,31 @@ export async function POST(request: Request) {
   }
 
   let raw: Partial<ChatApiResponse>;
+  const startedAt = Date.now();
   try {
     try {
       raw = await callModelOnce();
     } catch (firstError) {
       // A forced tool call very occasionally comes back unstructured. One
       // immediate retry clears it far more often than not, and is cheap
-      // relative to surfacing an error to the student.
+      // relative to surfacing an error to the student — but only if the first
+      // attempt left time for it, so the request stays inside the client timeout.
       if (firstError instanceof Anthropic.APIError) throw firstError;
+      if (Date.now() - startedAt > UNSTRUCTURED_RETRY_BUDGET_MS) throw firstError;
       console.warn("[/api/chat] retrying after unstructured response");
       raw = await callModelOnce();
     }
   } catch (error) {
     if (error instanceof Anthropic.APIError) {
       console.error("[/api/chat] Anthropic API error", error.status, error.message);
+      if (error.status === 401 || error.status === 403) {
+        // Not transient: retrying won't help until the key/permissions are fixed.
+        console.error("[/api/chat] CONFIG: Anthropic rejected ANTHROPIC_API_KEY — replace or re-enable the key.");
+      } else if (error.status === 404) {
+        console.error("[/api/chat] CONFIG: model not found — check ANTHROPIC_MODEL.");
+      } else if (error.status === 429 || error.status === 503 || error.status === 529) {
+        return NextResponse.json({ error: AI_BUSY_MESSAGE }, { status: 503 });
+      }
     } else {
       console.error("[/api/chat]", error);
     }
@@ -196,7 +234,7 @@ export async function POST(request: Request) {
   };
 
   const persistedConversationId = user
-    ? await persistTurn(user._id.toString(), conversationId, question, subject, result)
+    ? await persistTurn(user._id.toString(), conversationId, question, subject, result, replaceLast)
     : undefined;
 
   return NextResponse.json({

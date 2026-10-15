@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Landmark, BookText, BookMarked, MessageSquare, Scale } from "lucide-react";
 import {
@@ -15,7 +15,7 @@ import {
 import { subjects } from "@/lib/legal/subjects";
 import { landmarkCases } from "@/lib/legal/cases";
 import { legalActs } from "@/lib/legal/acts";
-import { recentConversations } from "@/lib/legal/mock-data";
+import type { ConversationSummary } from "@/lib/chat/conversations";
 
 interface SearchCommandProps {
   open: boolean;
@@ -24,6 +24,25 @@ interface SearchCommandProps {
 
 export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
   const router = useRouter();
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+
+  // Load the signed-in user's real conversations each time the palette opens, so the
+  // list is current and never shows placeholder entries.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch("/api/conversations")
+      .then((res) => (res.ok ? res.json() : { conversations: [] }))
+      .then((data: { conversations?: ConversationSummary[] }) => {
+        if (!cancelled) setConversations(data.conversations ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setConversations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -53,7 +72,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
         <CommandEmpty>No results found.</CommandEmpty>
 
         <CommandGroup heading="Subjects">
-          {subjects.slice(0, 6).map((s) => (
+          {subjects.map((s) => (
             <CommandItem key={s.slug} value={`subject ${s.name}`} onSelect={() => go(`/subjects/${s.slug}`)}>
               <BookMarked className="text-muted-foreground" />
               {s.name}
@@ -64,7 +83,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
         <CommandSeparator />
 
         <CommandGroup heading="Case Library">
-          {landmarkCases.slice(0, 6).map((c) => (
+          {landmarkCases.map((c) => (
             <CommandItem key={c.id} value={`case ${c.name}`} onSelect={() => go(`/cases/${c.id}`)}>
               <Landmark className="text-muted-foreground" />
               {c.name}
@@ -75,7 +94,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
         <CommandSeparator />
 
         <CommandGroup heading="Acts & Sections">
-          {legalActs.slice(0, 6).map((a) => (
+          {legalActs.map((a) => (
             <CommandItem key={a.id} value={`act ${a.name}`} onSelect={() => go(`/acts/${a.id}`)}>
               {a.category === "Constitution" ? (
                 <Scale className="text-muted-foreground" />
@@ -87,16 +106,24 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
           ))}
         </CommandGroup>
 
-        <CommandSeparator />
+        {conversations.length > 0 && (
+          <>
+            <CommandSeparator />
 
-        <CommandGroup heading="Recent conversations">
-          {recentConversations.slice(0, 4).map((c) => (
-            <CommandItem key={c.id} value={`conversation ${c.title}`} onSelect={() => go(`/tutor?conversation=${c.id}`)}>
-              <MessageSquare className="text-muted-foreground" />
-              {c.title}
-            </CommandItem>
-          ))}
-        </CommandGroup>
+            <CommandGroup heading="Your conversations">
+              {conversations.map((c) => (
+                <CommandItem
+                  key={c.id}
+                  value={`conversation ${c.title} ${c.id}`}
+                  onSelect={() => go(`/tutor?conversation=${c.id}`)}
+                >
+                  <MessageSquare className="text-muted-foreground" />
+                  {c.title}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
       </CommandList>
     </CommandDialog>
   );

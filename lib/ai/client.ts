@@ -12,7 +12,10 @@ export function getAnthropicClient(): Anthropic {
     throw new Error("ANTHROPIC_API_KEY is not configured on the server.");
   }
   if (!cachedClient) {
-    cachedClient = new Anthropic({ apiKey });
+    // Bounded so a stalled upstream call fails on the server (with a clear log)
+    // before the browser's own request timeout fires and the student retries
+    // into a turn that was already saved. Worst case ≈ 2 × 50s + backoff.
+    cachedClient = new Anthropic({ apiKey, timeout: 50_000, maxRetries: 1 });
   }
   return cachedClient;
 }

@@ -8,18 +8,23 @@ export async function GET() {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
 
-  await connectToDatabase();
-  const users = await User.find().select("-passwordHash").sort({ createdAt: -1 }).lean();
+  try {
+    await connectToDatabase();
+    const users = await User.find().select("-passwordHash").sort({ createdAt: -1 }).lean();
 
-  return NextResponse.json({
-    users: users.map((u) => ({
-      id: u._id.toString(),
-      name: u.name,
-      email: u.email,
-      lawLevel: u.lawLevel ?? null,
-      subjects: u.subjects ?? [],
-      onboarded: !!u.onboarded,
-      createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : null,
-    })),
-  });
+    return NextResponse.json({
+      users: users.map((u) => ({
+        id: u._id.toString(),
+        name: u.name,
+        email: u.email,
+        lawLevel: u.lawLevel ?? null,
+        subjects: u.subjects ?? [],
+        onboarded: !!u.onboarded,
+        createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : null,
+      })),
+    });
+  } catch (error) {
+    console.error("[/api/admin/users] GET", error);
+    return NextResponse.json({ error: "We couldn't load users. Please try again." }, { status: 502 });
+  }
 }

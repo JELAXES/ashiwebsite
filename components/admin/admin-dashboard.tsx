@@ -39,6 +39,8 @@ export function AdminDashboard() {
   const [conversations, setConversations] = useState<AdminConversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -50,30 +52,56 @@ export function AdminDashboard() {
   // `.then`/`.finally` callback, so the mount effect below stays clear of the
   // React Compiler's set-state-in-effect rule.
   function loadData() {
-    return Promise.all([
-      fetch("/api/admin/users").then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/admin/conversations").then((r) => (r.ok ? r.json() : null)),
-    ])
-      .then(([usersData, conversationsData]) => {
-        if (usersData) setUsers(usersData.users);
-        if (conversationsData) setConversations(conversationsData.conversations);
+    return Promise.all([fetch("/api/admin/users"), fetch("/api/admin/conversations")])
+      .then(async ([usersRes, conversationsRes]) => {
+        // An expired admin session must send you back to login, not render empty tables.
+        if (usersRes.status === 401 || conversationsRes.status === 401) {
+          router.replace("/admin/login");
+          router.refresh();
+          return;
+        }
+        if (!usersRes.ok || !conversationsRes.ok) {
+          setLoadError("We couldn't load the records. Check the server logs and try again.");
+          return;
+        }
+        const usersData = await usersRes.json();
+        const conversationsData = await conversationsRes.json();
+        setUsers(usersData.users);
+        setConversations(conversationsData.conversations);
+        setLoadError(null);
       })
+      .catch(() => setLoadError("Network error while loading records. Please try again."))
       .finally(() => setLoading(false));
   }
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleDeleteUser(id: string) {
     if (!confirm("Delete this user and all their conversations? This can't be undone.")) return;
     setDeletingId(id);
-    const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
-    if (res.ok) {
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+      if (res.status === 401) {
+        router.replace("/admin/login");
+        router.refresh();
+        return;
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setActionError(data?.error || "Couldn't delete that user. Please try again.");
+        return;
+      }
       setLoading(true);
       await loadData();
+    } catch {
+      setActionError("Network error. The user was not deleted.");
+    } finally {
+      setDeletingId(null);
     }
-    setDeletingId(null);
   }
 
   async function handleChangePassword(e: FormEvent) {
@@ -126,6 +154,12 @@ export function AdminDashboard() {
           Log out
         </Button>
       </div>
+
+      {(loadError || actionError) && (
+        <p className="mb-6 text-sm font-medium text-destructive" role="alert">
+          {loadError || actionError}
+        </p>
+      )}
 
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

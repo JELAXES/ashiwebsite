@@ -33,6 +33,11 @@ export interface ChatApiRequest {
   subject?: string;
   /** Existing conversation to append to. Omit to start (and persist) a new one. */
   conversationId?: string;
+  /**
+   * Set when re-asking the latest question (retry / regenerate): the server replaces
+   * the previously persisted turn instead of appending a duplicate.
+   */
+  replaceLast?: boolean;
 }
 
 export interface ChatApiResponse {

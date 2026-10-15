@@ -41,7 +41,9 @@ import type { ChatApiRequest, ChatApiResponse, ChatMessageData } from "@/lib/cha
 import type { ConversationSummary } from "@/lib/chat/conversations";
 import { cn } from "@/lib/utils";
 
-const REQUEST_TIMEOUT_MS = 45_000;
+// Must outlast the server's own bounded model call (see lib/ai/client.ts), so the
+// server answers (or fails cleanly) before the browser gives up and a retry races it.
+const REQUEST_TIMEOUT_MS = 110_000;
 const NETWORK_ERROR_MESSAGE = "Couldn't reach StudyRex. Check your connection and try again.";
 const TIMEOUT_ERROR_MESSAGE = "That took too long to answer. Please try again.";
 const GENERIC_ERROR_MESSAGE = "StudyRex AI is temporarily unavailable. Please try again.";
@@ -74,14 +76,30 @@ function initialSubjectFromParams(searchParams: ReadonlyURLSearchParams): string
 
 export function TutorView({ subjectOptions }: { subjectOptions: TutorSubjectOption[] }) {
   const searchParams = useSearchParams();
+  const [epoch, setEpoch] = useState(0);
+  // The conversation this view created itself, with the key it was running under at that
+  // moment. Writing `?conversation=<id>` into the URL after the first answer changes the
+  // query string, which would otherwise remount the view and wipe its in-memory state
+  // (and any in-flight follow-up) just as the answer lands.
+  const [owned, setOwned] = useState<{ id: string; key: string } | null>(null);
+
+  const fullKey = searchParams.toString();
+  const keepOwnedKey = owned !== null && searchParams.get("conversation") === owned.id;
+  const baseKey = keepOwnedKey ? owned.key : fullKey;
+
   // Remount when the query string changes so a fresh subject/conversation
   // (e.g. from an "Ask AI about this" link) starts a clean session, without
   // needing an effect to sync external URL state into local state.
   return (
     <TutorViewInner
-      key={searchParams.toString()}
+      key={`${epoch}|${baseKey}`}
       searchParams={searchParams}
       subjectOptions={subjectOptions}
+      onConversationCreated={(id) => setOwned({ id, key: baseKey })}
+      onReset={() => {
+        setOwned(null);
+        setEpoch((e) => e + 1);
+      }}
     />
   );
 }
@@ -89,9 +107,15 @@ export function TutorView({ subjectOptions }: { subjectOptions: TutorSubjectOpti
 function TutorViewInner({
   searchParams,
   subjectOptions,
+  onConversationCreated,
+  onReset,
 }: {
   searchParams: ReadonlyURLSearchParams;
   subjectOptions: TutorSubjectOption[];
+  /** Called when this view's first answer is saved as a new conversation. */
+  onConversationCreated: (id: string) => void;
+  /** Called when the student starts a brand-new chat, to force a clean remount. */
+  onReset: () => void;
 }) {
   const router = useRouter();
   const initialConversationId = searchParams.get("conversation") ?? undefined;
@@ -166,6 +190,7 @@ function TutorViewInner({
     pendingId: string,
     question: string,
     history: { role: "user" | "assistant"; content: string }[],
+    replaceLast = false,
   ) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -176,6 +201,7 @@ function TutorViewInner({
         chatHistory: history,
         subject: subject === "all" ? undefined : subject,
         conversationId,
+        replaceLast: replaceLast || undefined,
       };
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -223,9 +249,13 @@ function TutorViewInner({
 
       if (data.conversationId && data.conversationId !== conversationId) {
         setConversationId(data.conversationId);
-        // Shallow URL update (no client-side navigation/remount) so a page
-        // refresh reloads the right conversation without losing in-memory state now.
-        window.history.replaceState(null, "", `/tutor?conversation=${data.conversationId}`);
+        // Tell the wrapper this conversation is ours so the URL change below doesn't
+        // remount the view, then keep the other params (subject, prompt) intact so a
+        // page refresh reloads the right conversation.
+        onConversationCreated(data.conversationId);
+        const url = new URL(window.location.href);
+        url.searchParams.set("conversation", data.conversationId);
+        window.history.replaceState(null, "", url);
         refreshConversationList();
       }
     } catch (err) {
@@ -288,7 +318,8 @@ function TutorViewInner({
     setMessages((prev) =>
       prev.map((m) => (m.id === assistantId ? { ...m, pending: true, error: false, errorMessage: undefined } : m)),
     );
-    void requestAnswer(assistantId, question, history);
+    // Re-asking the latest question: have the server replace the saved turn, not append a copy.
+    void requestAnswer(assistantId, question, history, true);
   }
 
   function handleSaveToNotebook() {
@@ -301,6 +332,7 @@ function TutorViewInner({
 
   function startNewChat() {
     setNotebookOpen(false);
+    onReset();
     router.push("/tutor");
   }
 
@@ -408,12 +440,14 @@ function TutorViewInner({
             <div className="mx-auto flex max-w-3xl flex-col gap-6">
               {messages.map((m) => {
                 const isCompletedAnswer = m.role === "assistant" && !m.pending && !m.error;
+                // Regenerate replaces the latest turn, so only the latest answer offers it.
+                const canRegenerate = isCompletedAnswer && m.id === lastMessage?.id;
                 return (
                   <ChatMessage
                     key={m.id}
                     message={m}
                     onRetry={m.error ? () => retryMessage(m.id) : undefined}
-                    onRegenerate={isCompletedAnswer ? () => retryMessage(m.id) : undefined}
+                    onRegenerate={canRegenerate ? () => retryMessage(m.id) : undefined}
                     regenerating={isBusy}
                     onSaveToNotebook={isCompletedAnswer ? () => handleSaveToNotebook() : undefined}
                     savedToNotebook={isCompletedAnswer && !!conversationId}

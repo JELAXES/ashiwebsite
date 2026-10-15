@@ -20,7 +20,12 @@ export const metadata: Metadata = {
 };
 
 function greeting() {
-  const hour = new Date().getHours();
+  // The server runs in UTC; greet by the student's local (IST) hour, not the server's.
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: "Asia/Kolkata" }).format(
+      new Date(),
+    ),
+  );
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
   return "Good evening";

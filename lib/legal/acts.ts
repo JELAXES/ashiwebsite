@@ -36,7 +36,7 @@ export const legalActs: LegalAct[] = [
     year: 2023,
     category: "Criminal Law",
     status: "current",
-    supersedes: "Indian Penal Code, 1860",
+    supersedes: "The Indian Penal Code, 1860",
     inForceNote: "In force since 1 July 2024",
     summary:
       "The current substantive criminal code of India, replacing the Indian Penal Code, 1860, with revised offence definitions and renumbered sections.",
@@ -75,7 +75,7 @@ export const legalActs: LegalAct[] = [
     year: 2023,
     category: "Procedural Law",
     status: "current",
-    supersedes: "Code of Criminal Procedure, 1973",
+    supersedes: "The Code of Criminal Procedure, 1973",
     inForceNote: "In force since 1 July 2024",
     summary: "The current law of criminal procedure, replacing the CrPC, 1973, with provisions for timelines, forensics, and electronic processes.",
     provisions: [
@@ -107,7 +107,7 @@ export const legalActs: LegalAct[] = [
     year: 2023,
     category: "Procedural Law",
     status: "current",
-    supersedes: "Indian Evidence Act, 1872",
+    supersedes: "The Indian Evidence Act, 1872",
     inForceNote: "In force since 1 July 2024",
     summary: "The current law of evidence, replacing the Indian Evidence Act, 1872, with expanded provisions for electronic and digital evidence.",
     provisions: [

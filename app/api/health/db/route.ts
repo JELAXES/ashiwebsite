@@ -11,13 +11,9 @@ export async function GET() {
     await db.admin().ping();
     return NextResponse.json({ connected: true });
   } catch (error) {
+    // The detail stays in the server logs — this route is public, and driver
+    // errors can include hostnames and connection-string fragments.
     console.error("[/api/health/db]", error);
-    return NextResponse.json(
-      {
-        connected: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 503 },
-    );
+    return NextResponse.json({ connected: false }, { status: 503 });
   }
 }

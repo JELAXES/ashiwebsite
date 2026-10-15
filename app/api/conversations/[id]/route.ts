@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isValidObjectId } from "mongoose";
 import { connectToDatabase } from "@/lib/db/mongodb";
 import { Conversation } from "@/lib/db/models/conversation";
 import { getSession } from "@/lib/auth/session";
@@ -44,6 +45,10 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/conversati
     return NextResponse.json({ error: "Title can't be empty." }, { status: 400 });
   }
 
+  if (!isValidObjectId(id)) {
+    return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+  }
+
   try {
     await connectToDatabase();
     const conversation = await Conversation.findOneAndUpdate(
@@ -68,6 +73,10 @@ export async function DELETE(_request: Request, ctx: RouteContext<"/api/conversa
   }
 
   const { id } = await ctx.params;
+
+  if (!isValidObjectId(id)) {
+    return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+  }
 
   try {
     await connectToDatabase();
