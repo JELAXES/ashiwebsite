@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, LogOut, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface AdminUser {
@@ -41,12 +39,6 @@ export function AdminDashboard() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [pwError, setPwError] = useState<string | null>(null);
-  const [pwSuccess, setPwSuccess] = useState(false);
-  const [pwLoading, setPwLoading] = useState(false);
 
   // Promise-chain form (not async/await): setState only ever runs inside a
   // `.then`/`.finally` callback, so the mount effect below stays clear of the
@@ -101,38 +93,6 @@ export function AdminDashboard() {
       setActionError("Network error. The user was not deleted.");
     } finally {
       setDeletingId(null);
-    }
-  }
-
-  async function handleChangePassword(e: FormEvent) {
-    e.preventDefault();
-    setPwError(null);
-    setPwSuccess(false);
-
-    if (newPassword.length < 8) {
-      setPwError("New password must be at least 8 characters.");
-      return;
-    }
-
-    setPwLoading(true);
-    try {
-      const res = await fetch("/api/admin/change-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setPwError(data.error || "Something went wrong.");
-        return;
-      }
-      setPwSuccess(true);
-      setCurrentPassword("");
-      setNewPassword("");
-    } catch {
-      setPwError("Network error. Please try again.");
-    } finally {
-      setPwLoading(false);
     }
   }
 
@@ -259,46 +219,6 @@ export function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Change admin password</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleChangePassword} className="grid max-w-sm gap-4">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="current-password">Current password</Label>
-                  <Input
-                    id="current-password"
-                    type="password"
-                    autoComplete="current-password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="new-password">New password</Label>
-                  <Input
-                    id="new-password"
-                    type="password"
-                    autoComplete="new-password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                  />
-                </div>
-                {pwError && (
-                  <p className="text-xs font-medium text-destructive" role="alert">
-                    {pwError}
-                  </p>
-                )}
-                {pwSuccess && <p className="text-xs font-medium text-emerald-600">Password updated.</p>}
-                <Button type="submit" className="w-fit gap-2" disabled={pwLoading}>
-                  {pwLoading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-                  Update password
-                </Button>
-              </form>
             </CardContent>
           </Card>
         </div>

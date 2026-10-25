@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 
 export function AdminLoginForm() {
   const router = useRouter();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -17,8 +18,8 @@ export function AdminLoginForm() {
     e.preventDefault();
     setError(null);
 
-    if (!password) {
-      setError("Enter the admin password.");
+    if (!username.trim() || !password) {
+      setError("Enter the admin username and password.");
       return;
     }
 
@@ -27,7 +28,7 @@ export function AdminLoginForm() {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -46,7 +47,17 @@ export function AdminLoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       <div className="grid gap-1.5">
-        <Label htmlFor="admin-password">Admin password</Label>
+        <Label htmlFor="admin-username">Username</Label>
+        <Input
+          id="admin-username"
+          autoComplete="username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="admin"
+        />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="admin-password">Password</Label>
         <Input
           id="admin-password"
           type="password"

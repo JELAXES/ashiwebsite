@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/db/mongodb";
-import { getOrCreateAdminSettings } from "@/lib/auth/admin-settings";
-import { verifyPassword } from "@/lib/auth/password";
+import { timingSafeEqual, createHash } from "node:crypto";
 import { createAdminSessionCookie } from "@/lib/auth/admin-session";
 import { checkRateLimit } from "@/lib/ai/rate-limit";
+
+// Hash both sides so the comparison is constant-time regardless of length.
+function safeEqual(a: string, b: string): boolean {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
 
 const LOGIN_WINDOW_MS = 15 * 60_000;
 const MAX_ATTEMPTS_PER_IP = 8;
@@ -22,25 +27,30 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: Partial<{ password: string }>;
+  let body: Partial<{ username: string; password: string }>;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
+  const username = typeof body.username === "string" ? body.username.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
-  if (!password) {
-    return NextResponse.json({ error: "Enter the admin password." }, { status: 400 });
+  if (!username || !password) {
+    return NextResponse.json({ error: "Enter the admin username and password." }, { status: 400 });
+  }
+
+  const adminUsername = process.env.ADMIN_USERNAME;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminUsername || !adminPassword) {
+    console.error("[/api/admin/login] ADMIN_USERNAME / ADMIN_PASSWORD are not configured.");
+    return NextResponse.json({ error: "Admin login is not configured on the server." }, { status: 500 });
   }
 
   try {
-    await connectToDatabase();
-    const settings = await getOrCreateAdminSettings();
-
-    const valid = await verifyPassword(password, settings.passwordHash);
+    const valid = safeEqual(username, adminUsername) && safeEqual(password, adminPassword);
     if (!valid) {
-      return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
+      return NextResponse.json({ error: "Incorrect username or password." }, { status: 401 });
     }
 
     await createAdminSessionCookie();
