@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function AdminLoginPage() {
   return (
-    <AuthShell title="Admin" subtitle="Enter the admin password to continue.">
+    <AuthShell title="Admin" subtitle="Enter the admin username and password to continue.">
       <AdminLoginForm />
     </AuthShell>
   );
